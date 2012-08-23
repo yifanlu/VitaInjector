@@ -9,7 +9,7 @@ using Sce.PlayStation.HighLevel.UI;
 
 namespace VitaInjectorClient
 {
-	public delegate int RunCode(int param);
+	public delegate uint RunCode(uint param);
 	public delegate IntPtr pss_code_mem_alloc(IntPtr length);
 	public delegate void pss_code_mem_unlock();
 	
@@ -22,11 +22,35 @@ namespace VitaInjectorClient
 		public static readonly int BLOCK_SIZE = 0x100;
 		public static IntPtr src = new IntPtr(0);
 		public static byte[] dest = new byte[BLOCK_SIZE];
+		public static byte[] buffer;
 		
 		public static void Connect ()
 		{
 			connected = true;
 			label.Text = "Connected.";
+		}
+		
+		public static IntPtr AllocCode (pss_code_mem_alloc alloc, pss_code_mem_unlock unlock, IntPtr p_len)
+		{
+			Console.WriteLine("Creating code block.");
+			IntPtr ret = alloc(p_len);
+			Console.WriteLine("Allocated at 0x{0:X}. Unlocking.", ret.ToInt32());
+			unlock();
+			Console.WriteLine("Code block unlocked for writing.");
+			return ret;
+		}
+		
+		public static byte[] CreateBuffer (int size)
+		{
+			buffer = new byte[size];
+			return buffer;
+		}
+		
+		public static void ExecutePayload (RunCode run)
+		{
+			Console.WriteLine("Executing with 0x{0:X} in R0.", 0xDEADBEEF);
+			uint ret = run(0xDEADBEEF);
+			Console.WriteLine("Function returned value: 0x{0:X}", ret);
 		}
 		
 		public static void Main (string[] args)

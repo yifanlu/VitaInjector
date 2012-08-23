@@ -19,7 +19,7 @@
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Externalconsole>true</Externalconsole>
-    <Commandlineparameters>dump 0x81000000 0 test.bin COM10</Commandlineparameters>
+    <Commandlineparameters>inject payload.bin COM10</Commandlineparameters>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>

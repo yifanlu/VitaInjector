@@ -10,6 +10,8 @@ namespace VitaInjector
 	class MainClass
 	{
 		public static readonly int BLOCK_SIZE = 0x100;
+		public static readonly Int64 PSS_CODE_ALLOC_FUNC = -2083199240;
+		public static readonly Int64 PSS_CODE_UNLOCK = -2083202120;
 		
 		public static void PrintHelp ()
 		{
@@ -58,7 +60,19 @@ namespace VitaInjector
 		
 		public static void InjectMain (string[] args)
 		{
-			
+			if(args.Length < 3)
+			{
+				Console.WriteLine("error: not enough arguments.");
+				PrintHelp();
+				return;
+			}
+			string port = args[2];
+			byte[] payload = File.ReadAllBytes(args[1]);
+			Vita v = new Vita(port);
+			v.Start();
+			AlertClient(v);
+			StartInjection(v, payload);
+			v.Stop();
 		}
 		
 		public static void DumpMain (string[] args)
@@ -169,6 +183,111 @@ namespace VitaInjector
 				}
 			}
 			v.Resume();
+		}
+		
+		public static void StartInjection(Vita v, byte[] payload)
+		{
+			Console.WriteLine("Allocating space for length int.");
+			long alloc = v.GetMethod(true, "System.Runtime.InteropServices.Marshal", "AllocHGlobal", 1, new string[]{"Int32"});
+			if(alloc < 0)
+			{
+				Console.WriteLine("Error getting method.");
+				return;
+			}
+			ValueImpl lenlen = new ValueImpl();
+			lenlen.Type = ElementType.I4;
+			lenlen.Value = 4; // 4 bytes int
+			ValueImpl lenptr = v.RunMethod(alloc, null, new ValueImpl[]{lenlen});
+			
+			Console.WriteLine("Writing length to heap.");
+			long writeint32 = v.GetMethod(true, "System.Runtime.InteropServices.Marshal", "WriteInt32", 2, null);
+			if(writeint32 < 0)
+			{
+				Console.WriteLine("Error getting method.");
+				return;
+			}
+			ValueImpl lenval = new ValueImpl();
+			lenval.Type = ElementType.I4;
+			lenval.Value = payload.Length;
+			v.RunMethod(writeint32, null, new ValueImpl[]{lenptr, lenval});
+			
+			Console.WriteLine("Getting delegate to pss_code_mem_alloc().");
+			long delforfptr = v.GetMethod(true, "System.Runtime.InteropServices.Marshal", "GetDelegateForFunctionPointer", 2, null);
+			if(delforfptr < 0)
+			{
+				Console.WriteLine("Error getting method.");
+				return;
+			}
+			ValueImpl fptr = new ValueImpl();
+			fptr.Type = ElementType.ValueType;
+			fptr.Klass = lenptr.Klass; // both are IntPtrs
+			fptr.Fields = new ValueImpl[]{ new ValueImpl() };
+			fptr.Fields[0].Type = ElementType.I8;
+			fptr.Fields[0].Value = PSS_CODE_ALLOC_FUNC;
+			ValueImpl ftype = new ValueImpl();
+			ftype.Type = ElementType.Object;
+			ftype.Objid = v.GetTypeObjID(false, "VitaInjectorClient.pss_code_mem_alloc");
+			ValueImpl del_code_alloc = v.RunMethod(delforfptr, null, new ValueImpl[]{fptr, ftype});
+			Console.WriteLine("Getting delegate to pss_code_mem_unlock().");
+			fptr.Fields[0].Value = PSS_CODE_UNLOCK;
+			ftype.Objid = v.GetTypeObjID(false, "VitaInjectorClient.pss_code_mem_unlock");
+			ValueImpl del_code_unlock = v.RunMethod(delforfptr, null, new ValueImpl[]{fptr, ftype});
+			
+			Console.WriteLine("Getting helper function to create code block.");
+			long alloccode = v.GetMethod(false, "VitaInjectorClient.AppMain", "AllocCode", 3, null);
+			if(alloccode < 0)
+			{
+				Console.WriteLine("Error getting method.");
+				return;
+			}
+			// must be objects
+			del_code_alloc.Type = ElementType.Object;
+			del_code_unlock.Type = ElementType.Object;
+			ValueImpl codeheap = v.RunMethod(alloccode, null, new ValueImpl[]{del_code_alloc, del_code_unlock, lenptr});
+			
+			Console.WriteLine("Getting helper function to create buffer on Vita.");
+			long createbuffer = v.GetMethod(false, "VitaInjectorClient.AppMain", "CreateBuffer", 1, null);
+			if(createbuffer < 0)
+			{
+				Console.WriteLine("Error getting method.");
+				return;
+			}
+			ValueImpl buffer = v.RunMethod(createbuffer, null, new ValueImpl[]{lenval});
+			
+			Console.WriteLine("Writing payload to Vita's buffer.");
+			for(int k = 0; k < payload.Length; k += BLOCK_SIZE)
+			{
+				Console.WriteLine("Writing 0x{0:X}...", k);
+				v.SetArray(buffer.Objid, payload, k, (k + BLOCK_SIZE > payload.Length) ? payload.Length - k : BLOCK_SIZE);
+			}
+			
+			Console.WriteLine("Moving payload to executable memory.");
+			long copy = v.GetMethod(true, "System.Runtime.InteropServices.Marshal", "Copy", 4, new string[]{"Byte[]", "Int32", "IntPtr", "Int32"});
+			if(copy < 0)
+			{
+				Console.WriteLine("Error getting method.");
+				return;
+			}
+			ValueImpl sti = new ValueImpl();
+			sti.Type = ElementType.I4;
+			sti.Value = 0;
+			buffer.Type = ElementType.Object;
+			v.RunMethod(copy, null, new ValueImpl[]{buffer, sti, codeheap, lenval});
+			
+			Console.WriteLine("Creating a function delegate on buffer.");
+			codeheap.Fields[0].Value = (Int64)codeheap.Fields[0].Value + 1; // thumb2 code
+			ftype.Objid = v.GetTypeObjID(false, "VitaInjectorClient.RunCode");
+			ValueImpl del_injected = v.RunMethod(delforfptr, null, new ValueImpl[]{codeheap, ftype});
+			
+			Console.WriteLine("Getting helper function to execute payload.");
+			long executepayload = v.GetMethod(false, "VitaInjectorClient.AppMain", "ExecutePayload", 1, null);
+			if(executepayload < 0)
+			{
+				Console.WriteLine("Error getting method.");
+				return;
+			}
+			del_injected.Type = ElementType.Object; // must be object
+			v.RunMethod(executepayload, null, new ValueImpl[]{del_injected});
 		}
 		
 		private static void PrintHexDump(byte[] data, uint size, uint num)
@@ -555,6 +674,30 @@ namespace VitaInjector
 			{
 				buf[i] = (byte)vals[i].Value;
 			}
+		}
+		
+		public void SetArray(long objid, byte[] buf, int offset, int len)
+		{
+			if(buf == null || buf.Length == 0)
+				return;
+			if(len > buf.Length)
+				throw new ArgumentException("len > buf.Length");
+			
+			ValueImpl[] vals = new ValueImpl[len];
+			for(int i = 0; i < len; i++)
+			{
+				vals[i] = new ValueImpl();
+				vals[i].Type = ElementType.U1;
+				vals[i].Value = buf[offset+i];
+			}
+			conn.Array_SetValues(objid, offset, vals);
+		}
+		
+		public long GetTypeObjID(bool incorlib, string name)
+		{
+			long assembly = incorlib ? corlibid : assid;
+			long tid = conn.Assembly_GetType(assembly, name, true);
+			return conn.Type_GetObject(tid);
 		}
 	}
 }
