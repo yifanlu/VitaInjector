@@ -1,0 +1,10 @@
+Install PSM 0.99
+You need the following files from "C:\Program Files (x86)\SCE\PSM\tools\lib"
+host_transport64.dll
+psm_device64.dll
+From "C:\Program Files (x86)\SCE\PSM\tools\PsmStudio\AddIns\MonoDevelop.Debugger.Soft"
+MonoDevelop.Debugger.Soft.dll
+From "C:\Program Files (x86)\SCE\PSM\tools\PsmStudio\bin"
+Mono.Cecil.dll
+
+Put them all in .\VitaInjector\lib\
