@@ -9,9 +9,11 @@ using Sce.PlayStation.HighLevel.UI;
 
 namespace VitaInjectorClient
 {
-	public delegate uint RunCode(uint param);
-	public delegate IntPtr pss_code_mem_alloc(IntPtr length);
-	public delegate void pss_code_mem_unlock();
+	public delegate uint RunCode (uint param);
+
+	public delegate IntPtr pss_code_mem_alloc (IntPtr length);
+
+	public delegate void pss_code_mem_unlock ();
 	
 	public class AppMain
 	{
@@ -20,7 +22,7 @@ namespace VitaInjectorClient
 		private static bool connected = false;
 		// helper fields for memory dumping
 		public static readonly int BLOCK_SIZE = 0x100;
-		public static IntPtr src = new IntPtr(0);
+		public static IntPtr src = new IntPtr (0);
 		public static byte[] dest = new byte[BLOCK_SIZE];
 		public static byte[] buffer;
 		
@@ -32,11 +34,11 @@ namespace VitaInjectorClient
 		
 		public static IntPtr AllocCode (pss_code_mem_alloc alloc, pss_code_mem_unlock unlock, IntPtr p_len)
 		{
-			Console.WriteLine("Creating code block.");
-			IntPtr ret = alloc(p_len);
-			Console.WriteLine("Allocated at 0x{0:X}. Unlocking.", ret.ToInt32());
-			unlock();
-			Console.WriteLine("Code block unlocked for writing.");
+			Console.WriteLine ("Creating code block.");
+			IntPtr ret = alloc (p_len);
+			Console.WriteLine ("Allocated at 0x{0:X}. Unlocking.", ret.ToInt32 ());
+			unlock ();
+			Console.WriteLine ("Code block unlocked for writing.");
 			return ret;
 		}
 		
@@ -48,9 +50,9 @@ namespace VitaInjectorClient
 		
 		public static void ExecutePayload (RunCode run)
 		{
-			Console.WriteLine("Executing with 0x{0:X} in R0.", 0xDEADBEEF);
-			uint ret = run(0xDEADBEEF);
-			Console.WriteLine("Function returned value: 0x{0:X}", ret);
+			Console.WriteLine ("Executing with 0x{0:X} in R0.", 0xDEADBEEF);
+			uint ret = run (0xDEADBEEF);
+			Console.WriteLine ("Function returned value: 0x{0:X}", ret);
 		}
 		
 		public static void Main (string[] args)
@@ -70,21 +72,21 @@ namespace VitaInjectorClient
 			graphics = new GraphicsContext ();
 			
 			UISystem.Initialize (graphics);
-			Scene myScene = new Scene();
-			label = new Label();
+			Scene myScene = new Scene ();
+			label = new Label ();
 			label.X = 10.0f;
 			label.Y = 10.0f;
 			label.Width = 300.0f;
 			label.Text = "Waiting for connection...";
-			myScene.RootWidget.AddChildLast(label);
+			myScene.RootWidget.AddChildLast (label);
 			
-			UISystem.SetScene(myScene, null);
+			UISystem.SetScene (myScene, null);
 		}
 
 		public static void Update ()
 		{
 			List<TouchData> touchDataList = Touch.GetData (0);
-			UISystem.Update(touchDataList);
+			UISystem.Update (touchDataList);
 		}
 
 		public static void Render ()

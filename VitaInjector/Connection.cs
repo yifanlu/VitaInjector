@@ -10,115 +10,110 @@ using Mono.Debugger.Soft;
 
 namespace VitaInjector
 {
-	public class DataConverter {
-		public static unsafe byte[] GetBytesBE(double value)
+	public class DataConverter
+	{
+		public static unsafe byte[] GetBytesBE (double value)
 		{
-		    return GetBytesSwap(BitConverter.IsLittleEndian, (byte*) &value, 8);
+			return GetBytesSwap (BitConverter.IsLittleEndian, (byte*)&value, 8);
 		}
-		private static unsafe byte[] GetBytesSwap(bool swap, byte* ptr, int count)
+
+		private static unsafe byte[] GetBytesSwap (bool swap, byte* ptr, int count)
 		{
-		    int num2;
-		    byte[] buffer = new byte[count];
-		    if (swap)
-		    {
-		        int num = count - 1;
-		        for (num2 = 0; num2 < count; num2++)
-		        {
-		            buffer[num - num2] = ptr[num2];
-		        }
-		        return buffer;
-		    }
-		    for (num2 = 0; num2 < count; num2++)
-		    {
-		        buffer[num2] = ptr[num2];
-		    }
-		    return buffer;
+			int num2;
+			byte[] buffer = new byte[count];
+			if (swap) {
+				int num = count - 1;
+				for (num2 = 0; num2 < count; num2++) {
+					buffer [num - num2] = ptr [num2];
+				}
+				return buffer;
+			}
+			for (num2 = 0; num2 < count; num2++) {
+				buffer [num2] = ptr [num2];
+			}
+			return buffer;
 		}
-		public static unsafe float FloatFromBE(byte[] data, int index)
+
+		public static unsafe float FloatFromBE (byte[] data, int index)
 		{
-		    float num;
-		    if (data == null)
-		    {
-		        throw new ArgumentNullException("data");
-		    }
-		    if ((data.Length - index) < 4)
-		    {
-		        throw new ArgumentException("index");
-		    }
-		    if (index < 0)
-		    {
-		        throw new ArgumentException("index");
-		    }
-		    fixed (byte* numRef = &(data[index]))
-		    {
-		        PutBytesBE((byte*) &num, numRef, 4);
-		    }
-		    return num;
+			float num;
+			if (data == null) {
+				throw new ArgumentNullException ("data");
+			}
+			if ((data.Length - index) < 4) {
+				throw new ArgumentException ("index");
+			}
+			if (index < 0) {
+				throw new ArgumentException ("index");
+			}
+			fixed (byte* numRef = &(data[index])) {
+				PutBytesBE ((byte*)&num, numRef, 4);
+			}
+			return num;
 		}
-		public static unsafe double DoubleFromBE(byte[] data, int index)
+
+		public static unsafe double DoubleFromBE (byte[] data, int index)
 		{
-		    double num;
-		    if (data == null)
-		    {
-		        throw new ArgumentNullException("data");
-		    }
-		    if ((data.Length - index) < 8)
-		    {
-		        throw new ArgumentException("index");
-		    }
-		    if (index < 0)
-		    {
-		        throw new ArgumentException("index");
-		    }
-		    fixed (byte* numRef = &(data[index]))
-		    {
-		        PutBytesBE((byte*) &num, numRef, 8);
-		    }
-		    return num;
+			double num;
+			if (data == null) {
+				throw new ArgumentNullException ("data");
+			}
+			if ((data.Length - index) < 8) {
+				throw new ArgumentException ("index");
+			}
+			if (index < 0) {
+				throw new ArgumentException ("index");
+			}
+			fixed (byte* numRef = &(data[index])) {
+				PutBytesBE ((byte*)&num, numRef, 8);
+			}
+			return num;
 		}
-		private static unsafe void PutBytesBE(byte* dest, byte* src, int count)
+
+		private static unsafe void PutBytesBE (byte* dest, byte* src, int count)
 		{
-		    int num = 0;
-		    if (!BitConverter.IsLittleEndian)
-		    {
-		        while (num < count)
-		        {
-		            dest++;
-		            src++;
-		            dest[0] = src[0];
-		            num++;
-		        }
-		    }
-		    else
-		    {
-		        dest += count;
-		        while (num < count)
-		        {
-		            src++;
-		            *(--dest) = src[0];
-		            num++;
-		        }
-		    }
+			int num = 0;
+			if (!BitConverter.IsLittleEndian) {
+				while (num < count) {
+					dest++;
+					src++;
+					dest [0] = src [0];
+					num++;
+				}
+			} else {
+				dest += count;
+				while (num < count) {
+					src++;
+		            *
+					(--dest) = src [0];
+					num++;
+				}
+			}
 		}
 	}
 	
-	public class VersionInfo {
+	public class VersionInfo
+	{
 		public string VMVersion {
-			get; set;
+			get;
+			set;
 		}
 
 		public int MajorVersion {
-			get; set;
+			get;
+			set;
 		}
 
 		public int MinorVersion {
-			get; set;
+			get;
+			set;
 		}
 
 		/*
 		 * Check that this version is at least major:minor
 		 */
-		public bool AtLeast (int major, int minor) {
+		public bool AtLeast (int major, int minor)
+		{
 			if ((MajorVersion > major) || ((MajorVersion == major && MinorVersion >= minor)))
 				return true;
 			else
@@ -126,21 +121,24 @@ namespace VitaInjector
 		}
 	}
 
-	class DebugInfo {
+	class DebugInfo
+	{
 		public int max_il_offset;
 		public string filename;
 		public int[] il_offsets;
 		public int[] line_numbers;
 	}
 
-	struct FrameInfo {
+	struct FrameInfo
+	{
 		public long id;
 		public long method;
 		public int il_offset;
 		public StackFrameFlags flags;
 	}
 
-	class TypeInfo {
+	class TypeInfo
+	{
 		public string ns, name, full_name;
 		public long assembly, module, base_type, element_type;
 		public int token, rank, attributes;
@@ -148,15 +146,18 @@ namespace VitaInjector
 		public long[] nested;
 	}
 
-	class MethodInfo {
+	class MethodInfo
+	{
 		public int attributes, iattributes, token;
 	}
 
-	class MethodBodyInfo {
+	class MethodBodyInfo
+	{
 		public byte[] il;
 	}
 
-	struct ParamInfo {
+	struct ParamInfo
+	{
 		public int call_conv;
 		public int param_count;
 		public int generic_param_count;
@@ -165,53 +166,62 @@ namespace VitaInjector
 		public string[] param_names;
 	}
 
-	struct LocalsInfo {
+	struct LocalsInfo
+	{
 		public long[] types;
 		public string[] names;
 		public int[] live_range_start;
 		public int[] live_range_end;
 	}
 
-	struct PropInfo {
+	struct PropInfo
+	{
 		public long id;
 		public string name;
 		public long get_method, set_method;
 		public int attrs;
 	}
 
-	class CattrNamedArgInfo {
+	class CattrNamedArgInfo
+	{
 		public bool is_property;
 		public long id;
 		public ValueImpl value;
 	}
 
-	class CattrInfo {
+	class CattrInfo
+	{
 		public long ctor_id;
 		public ValueImpl[] ctor_args;
 		public CattrNamedArgInfo[] named_args;
 	}
 
-	class ThreadInfo {
+	class ThreadInfo
+	{
 		public bool is_thread_pool;
 	}
 
-	struct ObjectRefInfo {
+	struct ObjectRefInfo
+	{
 		public long type_id;
 		public long domain_id;
 	}
 
-	enum ValueTypeId {
+	enum ValueTypeId
+	{
 		VALUE_TYPE_ID_NULL = 0xf0,
 		VALUE_TYPE_ID_TYPE = 0xf1
 	}
 
-	enum InvokeFlags {
+	enum InvokeFlags
+	{
 		NONE = 0x0,
 		DISABLE_BREAKPOINTS = 0x1,
 		SINGLE_THREADED = 0x2
 	}
 
-	enum ElementType {
+	enum ElementType
+	{
 		End		 = 0x00,
 		Void		= 0x01,
 		Boolean	 = 0x02,
@@ -253,7 +263,8 @@ namespace VitaInjector
 		Enum		= 0x55
 	}
 
-	class ValueImpl {
+	class ValueImpl
+	{
 		public ElementType Type; /* or one of the VALUE_TYPE_ID constants */
 		public long Objid;
 		public object Value;
@@ -263,12 +274,14 @@ namespace VitaInjector
 		public long Id; /* For VALUE_TYPE_ID_TYPE */
 	}
 
-	class ModuleInfo {
+	class ModuleInfo
+	{
 		public string Name, ScopeName, FQName, Guid;
 		public long Assembly;
-	}		
+	}
 
-	enum TokenType {
+	enum TokenType
+	{
 		STRING = 0,
 		TYPE = 1,
 		FIELD = 2,
@@ -276,117 +289,151 @@ namespace VitaInjector
 		UNKNOWN = 4
 	}
 
-	enum StackFrameFlags {
+	enum StackFrameFlags
+	{
 		DEBUGGER_INVOKE = 1
 	}
 
-	class ResolvedToken {
+	class ResolvedToken
+	{
 		public TokenType Type;
 		public string Str;
 		public long Id;
 	}
 
-	class Modifier {
+	class Modifier
+	{
 	}
 
-	class CountModifier : Modifier {
+	class CountModifier : Modifier
+	{
 		public int Count {
-			get; set;
+			get;
+			set;
 		}
 	}
 
-	class LocationModifier : Modifier {
+	class LocationModifier : Modifier
+	{
 		public long Method {
-			get; set;
+			get;
+			set;
 		}
 
 		public long Location {
-			get; set;
+			get;
+			set;
 		}
 	}
 
-	class StepModifier : Modifier {
+	class StepModifier : Modifier
+	{
 		public long Thread {
-			get; set;
+			get;
+			set;
 		}
 
 		public int Depth {
-			get; set;
+			get;
+			set;
 		}
 
 		public int Size {
-			get; set;
+			get;
+			set;
 		}
 	}
 
-	class ThreadModifier : Modifier {
+	class ThreadModifier : Modifier
+	{
 		public long Thread {
-			get; set;
+			get;
+			set;
 		}
 	}
 
-	class ExceptionModifier : Modifier {
+	class ExceptionModifier : Modifier
+	{
 		public long Type {
-			get; set;
+			get;
+			set;
 		}
+
 		public bool Caught {
-			get; set;
+			get;
+			set;
 		}
+
 		public bool Uncaught {
-			get; set;
+			get;
+			set;
 		}
 	}
 
-	class AssemblyModifier : Modifier {
+	class AssemblyModifier : Modifier
+	{
 		public long[] Assemblies {
-			get; set;
+			get;
+			set;
 		}
 	}
 
-	class EventInfo {
+	class EventInfo
+	{
 		public EventType EventType {
-			get; set;
+			get;
+			set;
 		}
 
 		public int ReqId {
-			get; set;
+			get;
+			set;
 		}
 
 		public SuspendPolicy SuspendPolicy {
-			get; set;
+			get;
+			set;
 		}
 
 		public long ThreadId {
-			get; set;
+			get;
+			set;
 		}
 
 		public long Id {
-			get; set;
+			get;
+			set;
 		}
 
 		public long Location {
-			get; set;
+			get;
+			set;
 		}
 
 		public int Level {
-			get; set;
+			get;
+			set;
 		}
 
 		public string Category {
-			get; set;
+			get;
+			set;
 		}
 
 		public string Message {
-			get; set;
+			get;
+			set;
 		}
 
-		public EventInfo (EventType type, int req_id) {
+		public EventInfo (EventType type, int req_id)
+		{
 			EventType = type;
 			ReqId = req_id;
 		}
 	}
 
-	public enum ErrorCode {
+	public enum ErrorCode
+	{
 		NONE = 0,
 		INVALID_OBJECT = 20,
 		INVALID_FIELDID = 25,
@@ -400,10 +447,12 @@ namespace VitaInjector
 		NO_SEQ_POINT_AT_IL_OFFSET = 106
 	}
 
-	public class ErrorHandlerEventArgs : EventArgs {
+	public class ErrorHandlerEventArgs : EventArgs
+	{
 
 		public ErrorCode ErrorCode {
-			get; set;
+			get;
+			set;
 		}
 	}
 
@@ -417,7 +466,6 @@ namespace VitaInjector
 		 * are in the set of supported events, and the commands.
 		 */
 		internal const string HANDSHAKE_STRING = "DWP-Handshake";
-
 		internal const int HEADER_LENGTH = 11;
 
 		/*
@@ -430,13 +478,15 @@ namespace VitaInjector
 		internal const int MAJOR_VERSION = 2;
 		internal const int MINOR_VERSION = 5;
 
-		enum WPSuspendPolicy {
+		enum WPSuspendPolicy
+		{
 			NONE = 0,
 			EVENT_THREAD = 1,
 			ALL = 2
 		}
 
-		enum CommandSet {
+		enum CommandSet
+		{
 			VM = 1,
 			OBJECT_REF = 9,
 			STRING_REF = 10,
@@ -452,7 +502,8 @@ namespace VitaInjector
 			EVENT = 64
 		}
 
-		enum EventKind {
+		enum EventKind
+		{
 			VM_START = 0,
 			VM_DEATH = 1,
 			THREAD_START = 2,
@@ -472,7 +523,8 @@ namespace VitaInjector
 			USER_LOG = 16
 		}
 
-		enum ModifierKind {
+		enum ModifierKind
+		{
 			COUNT = 1,
 			THREAD_ONLY = 3,
 			LOCATION_ONLY = 7,
@@ -481,7 +533,8 @@ namespace VitaInjector
 			ASSEMBLY_ONLY = 11
 		}
 
-		enum CmdVM {
+		enum CmdVM
+		{
 			VERSION = 1,
 			ALL_THREADS = 2,
 			SUSPEND = 3,
@@ -494,11 +547,13 @@ namespace VitaInjector
 			SET_KEEPALIVE = 10
 		}
 
-		enum CmdEvent {
+		enum CmdEvent
+		{
 			COMPOSITE = 100
 		}
 
-		enum CmdThread {
+		enum CmdThread
+		{
 			GET_FRAME_INFO = 1,
 			GET_NAME = 2,
 			GET_STATE = 3,
@@ -509,13 +564,15 @@ namespace VitaInjector
 			GET_TID = 6
 		}
 
-		enum CmdEventRequest {
+		enum CmdEventRequest
+		{
 			SET = 1,
 			CLEAR = 2,
 			CLEAR_ALL_BREAKPOINTS = 3
 		}
 
-		enum CmdAppDomain {
+		enum CmdAppDomain
+		{
 			GET_ROOT_DOMAIN = 1,
 			GET_FRIENDLY_NAME = 2,
 			GET_ASSEMBLIES = 3,
@@ -525,7 +582,8 @@ namespace VitaInjector
 			CREATE_BOXED_VALUE = 7
 		}
 
-		enum CmdAssembly {
+		enum CmdAssembly
+		{
 			GET_LOCATION = 1,
 			GET_ENTRY_POINT = 2,
 			GET_MANIFEST_MODULE = 3,
@@ -534,11 +592,13 @@ namespace VitaInjector
 			GET_NAME = 6
 		}
 
-		enum CmdModule {
+		enum CmdModule
+		{
 			GET_INFO = 1,
 		}
 
-		enum CmdMethod {
+		enum CmdMethod
+		{
 			GET_NAME = 1,
 			GET_DECLARING_TYPE = 2,
 			GET_DEBUG_INFO = 3,
@@ -549,7 +609,8 @@ namespace VitaInjector
 			RESOLVE_TOKEN = 8
 		}
 
-		enum CmdType {
+		enum CmdType
+		{
 			GET_INFO = 1,
 			GET_METHODS = 2,
 			GET_FIELDS = 3,
@@ -568,23 +629,27 @@ namespace VitaInjector
 			GET_VALUES_2 = 14
 		}
 
-		enum CmdStackFrame {
+		enum CmdStackFrame
+		{
 			GET_VALUES = 1,
 			GET_THIS = 2,
 			SET_VALUES = 3
 		}
 
-		enum CmdArrayRef {
+		enum CmdArrayRef
+		{
 			GET_LENGTH = 1,
 			GET_VALUES = 2,
 			SET_VALUES = 3
 		}
 
-		enum CmdStringRef {
+		enum CmdStringRef
+		{
 			GET_VALUE = 1
 		}
 
-		enum CmdObjectRef {
+		enum CmdObjectRef
+		{
 			GET_TYPE = 1,
 			GET_VALUES = 2,
 			IS_COLLECTED = 3,
@@ -594,56 +659,66 @@ namespace VitaInjector
 			GET_INFO = 7,
 		}
 
-		class Header {
+		class Header
+		{
 			public int id;
 			public int command_set;
 			public int command;
 			public int flags;
 		}			
 
-		internal static int GetPacketLength (byte[] header) {
+		internal static int GetPacketLength (byte[] header)
+		{
 			int offset = 0;
 			return decode_int (header, ref offset);
 		}
 
-		internal static bool IsReplyPacket (byte[] packet) {
+		internal static bool IsReplyPacket (byte[] packet)
+		{
 			int offset = 8;
 			return decode_byte (packet, ref offset) == 0x80;
 		}
 
-		internal static int GetPacketId (byte[] packet) {
+		internal static int GetPacketId (byte[] packet)
+		{
 			int offset = 4;
 			return decode_int (packet, ref offset);
 		}
 
-		static int decode_byte (byte[] packet, ref int offset) {
+		static int decode_byte (byte[] packet, ref int offset)
+		{
 			return packet [offset++];
 		}
 
-		static int decode_short (byte[] packet, ref int offset) {
+		static int decode_short (byte[] packet, ref int offset)
+		{
 			int res = ((int)packet [offset] << 8) | (int)packet [offset + 1];
 			offset += 2;
 			return res;
 		}
 
-		static int decode_int (byte[] packet, ref int offset) {
+		static int decode_int (byte[] packet, ref int offset)
+		{
 			int res = ((int)packet [offset] << 24) | ((int)packet [offset + 1] << 16) | ((int)packet [offset + 2] << 8) | (int)packet [offset + 3];
 			offset += 4;
 			return res;
 		}
 
-		static long decode_id (byte[] packet, ref int offset) {
+		static long decode_id (byte[] packet, ref int offset)
+		{
 			return decode_int (packet, ref offset);
 		}
 
-		static long decode_long (byte[] packet, ref int offset) {
+		static long decode_long (byte[] packet, ref int offset)
+		{
 			uint high = (uint)decode_int (packet, ref offset);
 			uint low = (uint)decode_int (packet, ref offset);
 
 			return (long)(((ulong)high << 32) | (ulong)low);
 		}
 
-		internal static SuspendPolicy decode_suspend_policy (int suspend_policy) {
+		internal static SuspendPolicy decode_suspend_policy (int suspend_policy)
+		{
 			switch ((WPSuspendPolicy)suspend_policy) {
 			case WPSuspendPolicy.NONE:
 				return SuspendPolicy.None;
@@ -656,7 +731,8 @@ namespace VitaInjector
 			}
 		}
 
-		static Header decode_command_header (byte[] packet) {
+		static Header decode_command_header (byte[] packet)
+		{
 			int offset = 0;
 			Header res = new Header ();
 
@@ -669,12 +745,14 @@ namespace VitaInjector
 			return res;
 		}
 
-		static void encode_byte (byte[] buf, int b, ref int offset) {
+		static void encode_byte (byte[] buf, int b, ref int offset)
+		{
 			buf [offset] = (byte)b;
 			offset ++;
 		}
 
-		static void encode_int (byte[] buf, int i, ref int offset) {
+		static void encode_int (byte[] buf, int i, ref int offset)
+		{
 			buf [offset] = (byte)((i >> 24) & 0xff);
 			buf [offset + 1] = (byte)((i >> 16) & 0xff);
 			buf [offset + 2] = (byte)((i >> 8) & 0xff);
@@ -682,16 +760,19 @@ namespace VitaInjector
 			offset += 4;
 		}
 
-		static void encode_id (byte[] buf, long id, ref int offset) {
+		static void encode_id (byte[] buf, long id, ref int offset)
+		{
 			encode_int (buf, (int)id, ref offset);
 		}
 
-		static void encode_long (byte[] buf, long l, ref int offset) {
+		static void encode_long (byte[] buf, long l, ref int offset)
+		{
 			encode_int (buf, (int)((l >> 32) & 0xffffffff), ref offset);
 			encode_int (buf, (int)(l & 0xffffffff), ref offset);
 		}
 
-		internal static byte[] EncodePacket (int id, int commandSet, int command, byte[] data, int dataLen) {
+		internal static byte[] EncodePacket (int id, int commandSet, int command, byte[] data, int dataLen)
+		{
 			byte[] buf = new byte [dataLen + 11];
 			int offset = 0;
 			
@@ -707,11 +788,13 @@ namespace VitaInjector
 			return buf;
 		}
 
-		class PacketReader {
+		class PacketReader
+		{
 			byte[] packet;
 			int offset;
 
-			public PacketReader (byte[] packet) {
+			public PacketReader (byte[] packet)
+			{
 				this.packet = packet;
 
 				// For event packets
@@ -728,15 +811,18 @@ namespace VitaInjector
 			}
 
 			public CommandSet CommandSet {
-				get; set;
+				get;
+				set;
 			}
 
 			public int Command {
-				get; set;
+				get;
+				set;
 			}
 
 			public int ErrorCode {
-				get; set;
+				get;
+				set;
 			}
 
 			public int Offset {
@@ -745,46 +831,55 @@ namespace VitaInjector
 				}
 			}
 
-			public int ReadByte () {
+			public int ReadByte ()
+			{
 				return decode_byte (packet, ref offset);
 			}
 
-			public int ReadShort () {
+			public int ReadShort ()
+			{
 				return decode_short (packet, ref offset);
 			}
 
-			public int ReadInt () {
+			public int ReadInt ()
+			{
 				return decode_int (packet, ref offset);
 			}
 
-			public long ReadId () {
+			public long ReadId ()
+			{
 				return decode_id (packet, ref offset);
 			}
 
-			public long ReadLong () {
+			public long ReadLong ()
+			{
 				return decode_long (packet, ref offset);
 			}
 
-			public float ReadFloat () {
+			public float ReadFloat ()
+			{
 				float f = DataConverter.FloatFromBE (packet, offset);
 				offset += 4;
 				return f;
 			}
 
-			public double ReadDouble () {
+			public double ReadDouble ()
+			{
 				double d = DataConverter.DoubleFromBE (packet, offset);
 				offset += 8;
 				return d;
 			}
 
-			public string ReadString () {
+			public string ReadString ()
+			{
 				int len = decode_int (packet, ref offset);
 				string res = new String (Encoding.UTF8.GetChars (packet, offset, len));
 				offset += len;
 				return res;
 			}
 
-			public ValueImpl ReadValue () {
+			public ValueImpl ReadValue ()
+			{
 				ElementType etype = (ElementType)ReadByte ();
 
 				switch (etype) {
@@ -844,17 +939,20 @@ namespace VitaInjector
 			}
 		}
 
-		class PacketWriter {
+		class PacketWriter
+		{
 
 			byte[] data;
 			int offset;
 
-			public PacketWriter () {
+			public PacketWriter ()
+			{
 				data = new byte [1024];
 				offset = 0;
 			}
 
-			void MakeRoom (int size) {
+			void MakeRoom (int size)
+			{
 				if (offset + size >= data.Length) {
 					int new_len = data.Length * 2;
 					while (new_len < offset + size) {
@@ -866,31 +964,36 @@ namespace VitaInjector
 				}
 			}
 
-			public PacketWriter WriteByte (byte val) {
+			public PacketWriter WriteByte (byte val)
+			{
 				MakeRoom (1);
 				encode_byte (data, val, ref offset);
 				return this;
 			}
 
-			public PacketWriter WriteInt (int val) {
+			public PacketWriter WriteInt (int val)
+			{
 				MakeRoom (4);
 				encode_int (data, val, ref offset);
 				return this;
 			}
 
-			public PacketWriter WriteId (long id) {
+			public PacketWriter WriteId (long id)
+			{
 				MakeRoom (8);
 				encode_id (data, id, ref offset);
 				return this;
 			}
 
-			public PacketWriter WriteLong (long val) {
+			public PacketWriter WriteLong (long val)
+			{
 				MakeRoom (8);
 				encode_long (data, val, ref offset);
 				return this;
 			}
 
-			public PacketWriter WriteFloat (float f) {
+			public PacketWriter WriteFloat (float f)
+			{
 				MakeRoom (8);
 				byte[] b = DataConverter.GetBytesBE (f);
 				for (int i = 0; i < 4; ++i)
@@ -899,7 +1002,8 @@ namespace VitaInjector
 				return this;
 			}
 
-			public PacketWriter WriteDouble (double d) {
+			public PacketWriter WriteDouble (double d)
+			{
 				MakeRoom (8);
 				byte[] b = DataConverter.GetBytesBE (d);
 				for (int i = 0; i < 8; ++i)
@@ -908,19 +1012,22 @@ namespace VitaInjector
 				return this;
 			}
 
-			public PacketWriter WriteInts (int[] ids) {
+			public PacketWriter WriteInts (int[] ids)
+			{
 				for (int i = 0; i < ids.Length; ++i)
 					WriteInt (ids [i]);
 				return this;
 			}
 
-			public PacketWriter WriteIds (long[] ids) {
+			public PacketWriter WriteIds (long[] ids)
+			{
 				for (int i = 0; i < ids.Length; ++i)
 					WriteId (ids [i]);
 				return this;
 			}
 
-			public PacketWriter WriteString (string s) {
+			public PacketWriter WriteString (string s)
+			{
 				encode_int (data, s.Length, ref offset);
 				byte[] b = Encoding.UTF8.GetBytes (s);
 				MakeRoom (b.Length);
@@ -929,12 +1036,14 @@ namespace VitaInjector
 				return this;
 			}
 
-			public PacketWriter WriteBool (bool val) {
+			public PacketWriter WriteBool (bool val)
+			{
 				WriteByte (val ? (byte)1 : (byte)0);
 				return this;
 			}
 
-			public PacketWriter WriteValue (ValueImpl v) {
+			public PacketWriter WriteValue (ValueImpl v)
+			{
 				ElementType t;
 
 				if (v.Value != null)
@@ -1005,7 +1114,8 @@ namespace VitaInjector
 				return this;
 			}
 
-			public PacketWriter WriteValues (ValueImpl[] values) {
+			public PacketWriter WriteValues (ValueImpl[] values)
+			{
 				for (int i = 0; i < values.Length; ++i)
 					WriteValue (values [i]);
 				return this;
@@ -1024,7 +1134,7 @@ namespace VitaInjector
 			}
 		}
 
-		delegate void ReplyCallback (int packet_id, byte[] packet);
+		delegate void ReplyCallback (int packet_id,byte[] packet);
 
 		bool closed;
 		Thread receiver_thread;
@@ -1034,7 +1144,8 @@ namespace VitaInjector
 
 		internal event EventHandler<ErrorHandlerEventArgs> ErrorHandler;
 
-		protected Connection () {
+		protected Connection ()
+		{
 			closed = false;
 			reply_packets = new Dictionary<int, byte[]> ();
 			reply_cbs = new Dictionary<int, ReplyCallback> ();
@@ -1042,13 +1153,17 @@ namespace VitaInjector
 		}
 		
 		protected abstract int TransportReceive (byte[] buf, int buf_offset, int len);
+
 		protected abstract int TransportSend (byte[] buf, int buf_offset, int len);
+
 		protected abstract void TransportSetTimeouts (int send_timeout, int receive_timeout);
+
 		protected abstract void TransportClose ();
 
 		internal VersionInfo Version;
 		
-		int Receive (byte[] buf, int buf_offset, int len) {
+		int Receive (byte[] buf, int buf_offset, int len)
+		{
 			int offset = 0;
 
 			while (offset < len) {
@@ -1063,7 +1178,8 @@ namespace VitaInjector
 		}
 		
 		// Do the wire protocol handshake
-		internal void Connect () {
+		internal void Connect ()
+		{
 			byte[] buf = new byte [HANDSHAKE_STRING.Length];
 			char[] cbuf = new char [buf.Length];
 
@@ -1103,7 +1219,8 @@ namespace VitaInjector
 			ErrorHandler = OrigErrorHandler;
 		}
 
-		internal byte[] ReadPacket () {
+		internal byte[] ReadPacket ()
+		{
 			// FIXME: Throw ClosedConnectionException () if the connection is closed
 			// FIXME: Throw ClosedConnectionException () if another thread closes the connection
 			// FIXME: Locking
@@ -1134,14 +1251,16 @@ namespace VitaInjector
 			}
 		}
 
-		internal void WritePacket (byte[] packet) {
+		internal void WritePacket (byte[] packet)
+		{
 			// FIXME: Throw ClosedConnectionException () if the connection is closed
 			// FIXME: Throw ClosedConnectionException () if another thread closes the connection
 			// FIXME: Locking
 			TransportSend (packet, 0, packet.Length);
 		}
 
-		internal void Close () {
+		internal void Close ()
+		{
 			closed = true;
 		}
 
@@ -1153,7 +1272,8 @@ namespace VitaInjector
 
 		bool disconnected;
 
-		void receiver_thread_main () {
+		void receiver_thread_main ()
+		{
 			while (!closed) {
 				try {
 					bool res = ReceivePacket ();
@@ -1173,144 +1293,147 @@ namespace VitaInjector
 			EventHandler.VMDisconnect (0, 0, null);
 		}
 
-		bool ReceivePacket () {
-				byte[] packet = ReadPacket ();
+		bool ReceivePacket ()
+		{
+			byte[] packet = ReadPacket ();
 
-				if (packet.Length == 0) {
-					return false;
-				}
+			if (packet.Length == 0) {
+				return false;
+			}
 
-				if (IsReplyPacket (packet)) {
-					int id = GetPacketId (packet);
-					ReplyCallback cb = null;
-					lock (reply_packets_monitor) {
-						reply_cbs.TryGetValue (id, out cb);
-						if (cb == null) {
-							reply_packets [id] = packet;
-							Monitor.PulseAll (reply_packets_monitor);
-						}
-					}
-
-					if (cb != null)
-						cb.Invoke (id, packet);
-				} else {
-					PacketReader r = new PacketReader (packet);
-
-					if (r.CommandSet == CommandSet.EVENT && r.Command == (int)CmdEvent.COMPOSITE) {
-						int spolicy = r.ReadByte ();
-						int nevents = r.ReadInt ();
-
-						SuspendPolicy suspend_policy = decode_suspend_policy (spolicy);
-
-						EventInfo[] events = new EventInfo [nevents];
-
-						for (int i = 0; i < nevents; ++i) {
-							EventKind kind = (EventKind)r.ReadByte ();
-							int req_id = r.ReadInt ();
-
-							EventType etype = (EventType)kind;
-
-							if (kind == EventKind.VM_START) {
-								long thread_id = r.ReadId ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id };
-								//EventHandler.VMStart (req_id, thread_id, null);
-							} else if (kind == EventKind.VM_DEATH) {
-								//EventHandler.VMDeath (req_id, 0, null);
-								events [i] = new EventInfo (etype, req_id) { };
-							} else if (kind == EventKind.THREAD_START) {
-								long thread_id = r.ReadId ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = thread_id };
-								//EventHandler.ThreadStart (req_id, thread_id, thread_id);
-							} else if (kind == EventKind.THREAD_DEATH) {
-								long thread_id = r.ReadId ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = thread_id };
-								//EventHandler.ThreadDeath (req_id, thread_id, thread_id);
-							} else if (kind == EventKind.ASSEMBLY_LOAD) {
-								long thread_id = r.ReadId ();
-								long id = r.ReadId ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
-								//EventHandler.AssemblyLoad (req_id, thread_id, id);
-							} else if (kind == EventKind.ASSEMBLY_UNLOAD) {
-								long thread_id = r.ReadId ();
-								long id = r.ReadId ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
-								//EventHandler.AssemblyUnload (req_id, thread_id, id);
-							} else if (kind == EventKind.TYPE_LOAD) {
-								long thread_id = r.ReadId ();
-								long id = r.ReadId ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
-								//EventHandler.TypeLoad (req_id, thread_id, id);
-							} else if (kind == EventKind.METHOD_ENTRY) {
-								long thread_id = r.ReadId ();
-								long id = r.ReadId ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
-								//EventHandler.MethodEntry (req_id, thread_id, id);
-							} else if (kind == EventKind.METHOD_EXIT) {
-								long thread_id = r.ReadId ();
-								long id = r.ReadId ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
-								//EventHandler.MethodExit (req_id, thread_id, id);
-							} else if (kind == EventKind.BREAKPOINT) {
-								long thread_id = r.ReadId ();
-								long id = r.ReadId ();
-								long loc = r.ReadLong ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id, Location = loc };
-								//EventHandler.Breakpoint (req_id, thread_id, id, loc);
-							} else if (kind == EventKind.STEP) {
-								long thread_id = r.ReadId ();
-								long id = r.ReadId ();
-								long loc = r.ReadLong ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id, Location = loc };
-								//EventHandler.Step (req_id, thread_id, id, loc);
-							} else if (kind == EventKind.EXCEPTION) {
-								long thread_id = r.ReadId ();
-								long id = r.ReadId ();
-								long loc = 0; // FIXME
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id, Location = loc };
-								//EventHandler.Exception (req_id, thread_id, id, loc);
-							} else if (kind == EventKind.APPDOMAIN_CREATE) {
-								long thread_id = r.ReadId ();
-								long id = r.ReadId ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
-								//EventHandler.AppDomainCreate (req_id, thread_id, id);
-							} else if (kind == EventKind.APPDOMAIN_UNLOAD) {
-								long thread_id = r.ReadId ();
-								long id = r.ReadId ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
-								//EventHandler.AppDomainUnload (req_id, thread_id, id);
-							} else if (kind == EventKind.USER_BREAK) {
-								long thread_id = r.ReadId ();
-								long id = 0;
-								long loc = 0;
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id, Location = loc };
-								//EventHandler.Exception (req_id, thread_id, id, loc);
-							} else if (kind == EventKind.USER_LOG) {
-								long thread_id = r.ReadId ();
-								int level = r.ReadInt ();
-								string category = r.ReadString ();
-								string message = r.ReadString ();
-								events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Level = level, Category = category, Message = message };
-								//EventHandler.Exception (req_id, thread_id, id, loc);
-							} else if (kind == EventKind.KEEPALIVE) {
-								events [i] = new EventInfo (etype, req_id) { };
-							} else {
-								throw new NotImplementedException ("Unknown event kind: " + kind);
-							}
-						}
-
-						EventHandler.Events (suspend_policy, events);
+			if (IsReplyPacket (packet)) {
+				int id = GetPacketId (packet);
+				ReplyCallback cb = null;
+				lock (reply_packets_monitor) {
+					reply_cbs.TryGetValue (id, out cb);
+					if (cb == null) {
+						reply_packets [id] = packet;
+						Monitor.PulseAll (reply_packets_monitor);
 					}
 				}
 
-				return true;
+				if (cb != null)
+					cb.Invoke (id, packet);
+			} else {
+				PacketReader r = new PacketReader (packet);
+
+				if (r.CommandSet == CommandSet.EVENT && r.Command == (int)CmdEvent.COMPOSITE) {
+					int spolicy = r.ReadByte ();
+					int nevents = r.ReadInt ();
+
+					SuspendPolicy suspend_policy = decode_suspend_policy (spolicy);
+
+					EventInfo[] events = new EventInfo [nevents];
+
+					for (int i = 0; i < nevents; ++i) {
+						EventKind kind = (EventKind)r.ReadByte ();
+						int req_id = r.ReadInt ();
+
+						EventType etype = (EventType)kind;
+
+						if (kind == EventKind.VM_START) {
+							long thread_id = r.ReadId ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id };
+							//EventHandler.VMStart (req_id, thread_id, null);
+						} else if (kind == EventKind.VM_DEATH) {
+							//EventHandler.VMDeath (req_id, 0, null);
+							events [i] = new EventInfo (etype, req_id) { };
+						} else if (kind == EventKind.THREAD_START) {
+							long thread_id = r.ReadId ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = thread_id };
+							//EventHandler.ThreadStart (req_id, thread_id, thread_id);
+						} else if (kind == EventKind.THREAD_DEATH) {
+							long thread_id = r.ReadId ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = thread_id };
+							//EventHandler.ThreadDeath (req_id, thread_id, thread_id);
+						} else if (kind == EventKind.ASSEMBLY_LOAD) {
+							long thread_id = r.ReadId ();
+							long id = r.ReadId ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
+							//EventHandler.AssemblyLoad (req_id, thread_id, id);
+						} else if (kind == EventKind.ASSEMBLY_UNLOAD) {
+							long thread_id = r.ReadId ();
+							long id = r.ReadId ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
+							//EventHandler.AssemblyUnload (req_id, thread_id, id);
+						} else if (kind == EventKind.TYPE_LOAD) {
+							long thread_id = r.ReadId ();
+							long id = r.ReadId ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
+							//EventHandler.TypeLoad (req_id, thread_id, id);
+						} else if (kind == EventKind.METHOD_ENTRY) {
+							long thread_id = r.ReadId ();
+							long id = r.ReadId ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
+							//EventHandler.MethodEntry (req_id, thread_id, id);
+						} else if (kind == EventKind.METHOD_EXIT) {
+							long thread_id = r.ReadId ();
+							long id = r.ReadId ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
+							//EventHandler.MethodExit (req_id, thread_id, id);
+						} else if (kind == EventKind.BREAKPOINT) {
+							long thread_id = r.ReadId ();
+							long id = r.ReadId ();
+							long loc = r.ReadLong ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id, Location = loc };
+							//EventHandler.Breakpoint (req_id, thread_id, id, loc);
+						} else if (kind == EventKind.STEP) {
+							long thread_id = r.ReadId ();
+							long id = r.ReadId ();
+							long loc = r.ReadLong ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id, Location = loc };
+							//EventHandler.Step (req_id, thread_id, id, loc);
+						} else if (kind == EventKind.EXCEPTION) {
+							long thread_id = r.ReadId ();
+							long id = r.ReadId ();
+							long loc = 0; // FIXME
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id, Location = loc };
+							//EventHandler.Exception (req_id, thread_id, id, loc);
+						} else if (kind == EventKind.APPDOMAIN_CREATE) {
+							long thread_id = r.ReadId ();
+							long id = r.ReadId ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
+							//EventHandler.AppDomainCreate (req_id, thread_id, id);
+						} else if (kind == EventKind.APPDOMAIN_UNLOAD) {
+							long thread_id = r.ReadId ();
+							long id = r.ReadId ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id };
+							//EventHandler.AppDomainUnload (req_id, thread_id, id);
+						} else if (kind == EventKind.USER_BREAK) {
+							long thread_id = r.ReadId ();
+							long id = 0;
+							long loc = 0;
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Id = id, Location = loc };
+							//EventHandler.Exception (req_id, thread_id, id, loc);
+						} else if (kind == EventKind.USER_LOG) {
+							long thread_id = r.ReadId ();
+							int level = r.ReadInt ();
+							string category = r.ReadString ();
+							string message = r.ReadString ();
+							events [i] = new EventInfo (etype, req_id) { ThreadId = thread_id, Level = level, Category = category, Message = message };
+							//EventHandler.Exception (req_id, thread_id, id, loc);
+						} else if (kind == EventKind.KEEPALIVE) {
+							events [i] = new EventInfo (etype, req_id) { };
+						} else {
+							throw new NotImplementedException ("Unknown event kind: " + kind);
+						}
+					}
+
+					EventHandler.Events (suspend_policy, events);
+				}
+			}
+
+			return true;
 		}
 
 		internal IEventHandler EventHandler {
-			get; set;
+			get;
+			set;
 		}
 
 		/* Send a request and call cb when a result is received */
-		int Send (CommandSet command_set, int command, PacketWriter packet, Action<PacketReader> cb) {
+		int Send (CommandSet command_set, int command, PacketWriter packet, Action<PacketReader> cb)
+		{
 			int id = IdGenerator;
 
 			lock (reply_packets_monitor) {
@@ -1329,7 +1452,8 @@ namespace VitaInjector
 			return id;
 		}
 
-		PacketReader SendReceive (CommandSet command_set, int command, PacketWriter packet) {
+		PacketReader SendReceive (CommandSet command_set, int command, PacketWriter packet)
+		{
 			int id = IdGenerator;
 
 			if (disconnected)
@@ -1365,7 +1489,8 @@ namespace VitaInjector
 			}
 		}
 
-		PacketReader SendReceive (CommandSet command_set, int command) {
+		PacketReader SendReceive (CommandSet command_set, int command)
+		{
 			return SendReceive (command_set, command, null);
 		}
 
@@ -1377,7 +1502,8 @@ namespace VitaInjector
 			}
 		}
 
-		CattrInfo[] ReadCattrs (PacketReader r) {
+		CattrInfo[] ReadCattrs (PacketReader r)
+		{
 			CattrInfo[] res = new CattrInfo [r.ReadInt ()];
 			for (int i = 0; i < res.Length; ++i) {
 				CattrInfo info = new CattrInfo ();
@@ -1400,7 +1526,8 @@ namespace VitaInjector
 			return res;
 		}
 
-		static ElementType TypeCodeToElementType (TypeCode c) {
+		static ElementType TypeCodeToElementType (TypeCode c)
+		{
 			switch (c) {
 			case TypeCode.Boolean:
 				return ElementType.Boolean;
@@ -1435,7 +1562,8 @@ namespace VitaInjector
 		 * Implementation of debugger commands
 		 */
 
-		internal VersionInfo VM_GetVersion () {
+		internal VersionInfo VM_GetVersion ()
+		{
 			var res = SendReceive (CommandSet.VM, (int)CmdVM.VERSION, null);
 			VersionInfo info = new VersionInfo ();
 			info.VMVersion = res.ReadString ();
@@ -1444,11 +1572,13 @@ namespace VitaInjector
 			return info;
 		}
 
-		internal void VM_SetProtocolVersion (int major, int minor) {
+		internal void VM_SetProtocolVersion (int major, int minor)
+		{
 			SendReceive (CommandSet.VM, (int)CmdVM.SET_PROTOCOL_VERSION, new PacketWriter ().WriteInt (major).WriteInt (minor));
 		}
 
-		internal long[] VM_GetThreads () {
+		internal long[] VM_GetThreads ()
+		{
 			var res = SendReceive (CommandSet.VM, (int)CmdVM.ALL_THREADS, null);
 			int len = res.ReadInt ();
 			long[] arr = new long [len];
@@ -1457,23 +1587,28 @@ namespace VitaInjector
 			return arr;
 		}
 
-		internal void VM_Suspend () {
+		internal void VM_Suspend ()
+		{
 			SendReceive (CommandSet.VM, (int)CmdVM.SUSPEND);
 		}
 
-		internal void VM_Resume () {
+		internal void VM_Resume ()
+		{
 			SendReceive (CommandSet.VM, (int)CmdVM.RESUME);
 		}
 
-		internal void VM_Exit (int exitCode) {
+		internal void VM_Exit (int exitCode)
+		{
 			SendReceive (CommandSet.VM, (int)CmdVM.EXIT, new PacketWriter ().WriteInt (exitCode));
 		}
 
-		internal void VM_Dispose () {
+		internal void VM_Dispose ()
+		{
 			SendReceive (CommandSet.VM, (int)CmdVM.DISPOSE);
 		}
 
-		internal ValueImpl VM_InvokeMethod (long thread, long method, ValueImpl this_arg, ValueImpl[] arguments, InvokeFlags flags, out ValueImpl exc) {
+		internal ValueImpl VM_InvokeMethod (long thread, long method, ValueImpl this_arg, ValueImpl[] arguments, InvokeFlags flags, out ValueImpl exc)
+		{
 			exc = null;
 			PacketReader r = SendReceive (CommandSet.VM, (int)CmdVM.INVOKE_METHOD, new PacketWriter ().WriteId (thread).WriteInt ((int)flags).WriteId (method).WriteValue (this_arg).WriteInt (arguments.Length).WriteValues (arguments));
 			if (r.ReadByte () == 0) {
@@ -1484,26 +1619,27 @@ namespace VitaInjector
 			}
 		}
 
-		internal delegate void InvokeMethodCallback (ValueImpl v, ValueImpl exc, ErrorCode error, object state);
+		internal delegate void InvokeMethodCallback (ValueImpl v,ValueImpl exc,ErrorCode error,object state);
 
-		internal int VM_BeginInvokeMethod (long thread, long method, ValueImpl this_arg, ValueImpl[] arguments, InvokeFlags flags, InvokeMethodCallback callback, object state) {
+		internal int VM_BeginInvokeMethod (long thread, long method, ValueImpl this_arg, ValueImpl[] arguments, InvokeFlags flags, InvokeMethodCallback callback, object state)
+		{
 			return Send (CommandSet.VM, (int)CmdVM.INVOKE_METHOD, new PacketWriter ().WriteId (thread).WriteInt ((int)flags).WriteId (method).WriteValue (this_arg).WriteInt (arguments.Length).WriteValues (arguments), delegate (PacketReader r) {
-					ValueImpl v, exc;
+				ValueImpl v, exc;
 
-					if (r.ErrorCode != 0) {
-						callback (null, null, (ErrorCode)r.ErrorCode, state);
+				if (r.ErrorCode != 0) {
+					callback (null, null, (ErrorCode)r.ErrorCode, state);
+				} else {
+					if (r.ReadByte () == 0) {
+						exc = r.ReadValue ();
+						v = null;
 					} else {
-						if (r.ReadByte () == 0) {
-							exc = r.ReadValue ();
-							v = null;
-						} else {
-							v = r.ReadValue ();
-							exc = null;
-						}
-
-						callback (v, exc, 0, state);
+						v = r.ReadValue ();
+						exc = null;
 					}
-				});
+
+					callback (v, exc, 0, state);
+				}
+			});
 		}
 
 		internal void VM_AbortInvoke (long thread, int id)
@@ -1527,11 +1663,13 @@ namespace VitaInjector
 			}
 		}
 
-		internal string Domain_GetName (long id) {
+		internal string Domain_GetName (long id)
+		{
 			return SendReceive (CommandSet.APPDOMAIN, (int)CmdAppDomain.GET_FRIENDLY_NAME, new PacketWriter ().WriteId (id)).ReadString ();
 		}
 
-		internal long[] Domain_GetAssemblies (long id) {
+		internal long[] Domain_GetAssemblies (long id)
+		{
 			var res = SendReceive (CommandSet.APPDOMAIN, (int)CmdAppDomain.GET_ASSEMBLIES, new PacketWriter ().WriteId (id));
 			int count = res.ReadInt ();
 			long[] assemblies = new long [count];
@@ -1540,19 +1678,23 @@ namespace VitaInjector
 			return assemblies;
 		}
 
-		internal long Domain_GetEntryAssembly (long id) {
+		internal long Domain_GetEntryAssembly (long id)
+		{
 			return SendReceive (CommandSet.APPDOMAIN, (int)CmdAppDomain.GET_ENTRY_ASSEMBLY, new PacketWriter ().WriteId (id)).ReadId ();
 		}
 
-		internal long Domain_GetCorlib (long id) {
+		internal long Domain_GetCorlib (long id)
+		{
 			return SendReceive (CommandSet.APPDOMAIN, (int)CmdAppDomain.GET_CORLIB, new PacketWriter ().WriteId (id)).ReadId ();
 		}
 
-		internal long Domain_CreateString (long id, string s) {
+		internal long Domain_CreateString (long id, string s)
+		{
 			return SendReceive (CommandSet.APPDOMAIN, (int)CmdAppDomain.CREATE_STRING, new PacketWriter ().WriteId (id).WriteString (s)).ReadId ();
 		}
 
-		internal long Domain_CreateBoxedValue (long id, long type_id, ValueImpl v) {
+		internal long Domain_CreateBoxedValue (long id, long type_id, ValueImpl v)
+		{
 			return SendReceive (CommandSet.APPDOMAIN, (int)CmdAppDomain.CREATE_BOXED_VALUE, new PacketWriter ().WriteId (id).WriteId (type_id).WriteValue (v)).ReadId ();
 		}
 
@@ -1560,15 +1702,18 @@ namespace VitaInjector
 		 * METHOD
 		 */
 
-		internal string Method_GetName (long id) {
+		internal string Method_GetName (long id)
+		{
 			return SendReceive (CommandSet.METHOD, (int)CmdMethod.GET_NAME, new PacketWriter ().WriteId (id)).ReadString ();
 		}
 
-		internal long Method_GetDeclaringType (long id) {
+		internal long Method_GetDeclaringType (long id)
+		{
 			return SendReceive (CommandSet.METHOD, (int)CmdMethod.GET_DECLARING_TYPE, new PacketWriter ().WriteId (id)).ReadId ();
 		}
 
-		internal DebugInfo Method_GetDebugInfo (long id) {
+		internal DebugInfo Method_GetDebugInfo (long id)
+		{
 			var res = SendReceive (CommandSet.METHOD, (int)CmdMethod.GET_DEBUG_INFO, new PacketWriter ().WriteId (id));
 
 			DebugInfo info = new DebugInfo ();
@@ -1586,7 +1731,8 @@ namespace VitaInjector
 			return info;
 		}
 
-		internal ParamInfo Method_GetParamInfo (long id) {
+		internal ParamInfo Method_GetParamInfo (long id)
+		{
 			var res = SendReceive (CommandSet.METHOD, (int)CmdMethod.GET_PARAM_INFO, new PacketWriter ().WriteId (id));
 
 			ParamInfo info = new ParamInfo ();
@@ -1604,7 +1750,8 @@ namespace VitaInjector
 			return info;
 		}
 
-		internal LocalsInfo Method_GetLocalsInfo (long id) {
+		internal LocalsInfo Method_GetLocalsInfo (long id)
+		{
 			var res = SendReceive (CommandSet.METHOD, (int)CmdMethod.GET_LOCALS_INFO, new PacketWriter ().WriteId (id));
 
 			LocalsInfo info = new LocalsInfo ();
@@ -1625,7 +1772,8 @@ namespace VitaInjector
 			return info;
 		}
 
-		internal MethodInfo Method_GetInfo (long id) {
+		internal MethodInfo Method_GetInfo (long id)
+		{
 			var res = SendReceive (CommandSet.METHOD, (int)CmdMethod.GET_INFO, new PacketWriter ().WriteId (id));
 
 			MethodInfo info = new MethodInfo ();
@@ -1636,7 +1784,8 @@ namespace VitaInjector
 			return info;
 		}
 
-		internal MethodBodyInfo Method_GetBody (long id) {
+		internal MethodBodyInfo Method_GetBody (long id)
+		{
 			var res = SendReceive (CommandSet.METHOD, (int)CmdMethod.GET_BODY, new PacketWriter ().WriteId (id));
 
 			MethodBodyInfo info = new MethodBodyInfo ();
@@ -1647,7 +1796,8 @@ namespace VitaInjector
 			return info;
 		}
 
-		internal ResolvedToken Method_ResolveToken (long id, int token) {
+		internal ResolvedToken Method_ResolveToken (long id, int token)
+		{
 			var res = SendReceive (CommandSet.METHOD, (int)CmdMethod.RESOLVE_TOKEN, new PacketWriter ().WriteId (id).WriteInt (token));
 
 			TokenType type = (TokenType)res.ReadByte ();
@@ -1669,11 +1819,13 @@ namespace VitaInjector
 		 * THREAD
 		 */
 
-		internal string Thread_GetName (long id) {
+		internal string Thread_GetName (long id)
+		{
 			return SendReceive (CommandSet.THREAD, (int)CmdThread.GET_NAME, new PacketWriter ().WriteId (id)).ReadString ();
 		}
 
-		internal FrameInfo[] Thread_GetFrameInfo (long id, int start_frame, int length) {
+		internal FrameInfo[] Thread_GetFrameInfo (long id, int start_frame, int length)
+		{
 			var res = SendReceive (CommandSet.THREAD, (int)CmdThread.GET_FRAME_INFO, new PacketWriter ().WriteId (id).WriteInt (start_frame).WriteInt (length));
 			int count = res.ReadInt ();
 
@@ -1687,11 +1839,13 @@ namespace VitaInjector
 			return frames;
 		}
 
-		internal int Thread_GetState (long id) {
+		internal int Thread_GetState (long id)
+		{
 			return SendReceive (CommandSet.THREAD, (int)CmdThread.GET_STATE, new PacketWriter ().WriteId (id)).ReadInt ();
 		}
 
-		internal ThreadInfo Thread_GetInfo (long id) {
+		internal ThreadInfo Thread_GetInfo (long id)
+		{
 			PacketReader r = SendReceive (CommandSet.THREAD, (int)CmdThread.GET_INFO, new PacketWriter ().WriteId (id));
 
 			ThreadInfo res = new ThreadInfo () { is_thread_pool = r.ReadByte () > 0 ? true : false };
@@ -1699,11 +1853,13 @@ namespace VitaInjector
 			return res;
 		}
 
-		internal long Thread_GetId (long id) {
+		internal long Thread_GetId (long id)
+		{
 			return SendReceive (CommandSet.THREAD, (int)CmdThread.GET_ID, new PacketWriter ().WriteId (id)).ReadLong ();
 		}
 
-		internal long Thread_GetTID (long id) {
+		internal long Thread_GetTID (long id)
+		{
 			return SendReceive (CommandSet.THREAD, (int)CmdThread.GET_TID, new PacketWriter ().WriteId (id)).ReadLong ();
 		}
 
@@ -1711,7 +1867,8 @@ namespace VitaInjector
 		 * MODULE
 		 */
 
-		internal ModuleInfo Module_GetInfo (long id) {
+		internal ModuleInfo Module_GetInfo (long id)
+		{
 			PacketReader r = SendReceive (CommandSet.MODULE, (int)CmdModule.GET_INFO, new PacketWriter ().WriteId (id));
 			ModuleInfo info = new ModuleInfo { Name = r.ReadString (), ScopeName = r.ReadString (), FQName = r.ReadString (), Guid = r.ReadString (), Assembly = r.ReadId () };
 			return info;
@@ -1721,27 +1878,33 @@ namespace VitaInjector
 		 * ASSEMBLY
 		 */
 
-		internal string Assembly_GetLocation (long id) {
+		internal string Assembly_GetLocation (long id)
+		{
 			return SendReceive (CommandSet.ASSEMBLY, (int)CmdAssembly.GET_LOCATION, new PacketWriter ().WriteId (id)).ReadString ();
 		}
 
-		internal long Assembly_GetEntryPoint (long id) {
+		internal long Assembly_GetEntryPoint (long id)
+		{
 			return SendReceive (CommandSet.ASSEMBLY, (int)CmdAssembly.GET_ENTRY_POINT, new PacketWriter ().WriteId (id)).ReadId ();
 		}
 
-		internal long Assembly_GetManifestModule (long id) {
+		internal long Assembly_GetManifestModule (long id)
+		{
 			return SendReceive (CommandSet.ASSEMBLY, (int)CmdAssembly.GET_MANIFEST_MODULE, new PacketWriter ().WriteId (id)).ReadId ();
 		}
 
-		internal long Assembly_GetObject (long id) {
+		internal long Assembly_GetObject (long id)
+		{
 			return SendReceive (CommandSet.ASSEMBLY, (int)CmdAssembly.GET_OBJECT, new PacketWriter ().WriteId (id)).ReadId ();
 		}
 
-		internal long Assembly_GetType (long id, string name, bool ignoreCase) {
+		internal long Assembly_GetType (long id, string name, bool ignoreCase)
+		{
 			return SendReceive (CommandSet.ASSEMBLY, (int)CmdAssembly.GET_TYPE, new PacketWriter ().WriteId (id).WriteString (name).WriteBool (ignoreCase)).ReadId ();
 		}
 
-		internal string Assembly_GetName (long id) {
+		internal string Assembly_GetName (long id)
+		{
 			return SendReceive (CommandSet.ASSEMBLY, (int)CmdAssembly.GET_NAME, new PacketWriter ().WriteId (id)).ReadString ();
 		}
 
@@ -1749,7 +1912,8 @@ namespace VitaInjector
 		 * TYPE
 		 */
 
-		internal TypeInfo Type_GetInfo (long id) {
+		internal TypeInfo Type_GetInfo (long id)
+		{
 			PacketReader r = SendReceive (CommandSet.TYPE, (int)CmdType.GET_INFO, new PacketWriter ().WriteId (id));
 			TypeInfo res = new TypeInfo ();
 
@@ -1778,7 +1942,8 @@ namespace VitaInjector
 			return res;
 		}
 
-		internal long[] Type_GetMethods (long id) {
+		internal long[] Type_GetMethods (long id)
+		{
 			PacketReader r = SendReceive (CommandSet.TYPE, (int)CmdType.GET_METHODS, new PacketWriter ().WriteId (id));
 
 			int n = r.ReadInt ();
@@ -1788,7 +1953,8 @@ namespace VitaInjector
 			return res;
 		}
 
-		internal long[] Type_GetFields (long id, out string[] names, out long[] types, out int[] attrs) {
+		internal long[] Type_GetFields (long id, out string[] names, out long[] types, out int[] attrs)
+		{
 			PacketReader r = SendReceive (CommandSet.TYPE, (int)CmdType.GET_FIELDS, new PacketWriter ().WriteId (id));
 
 			int n = r.ReadInt ();
@@ -1805,7 +1971,8 @@ namespace VitaInjector
 			return res;
 		}
 
-		internal PropInfo[] Type_GetProperties (long id) {
+		internal PropInfo[] Type_GetProperties (long id)
+		{
 			PacketReader r = SendReceive (CommandSet.TYPE, (int)CmdType.GET_PROPERTIES, new PacketWriter ().WriteId (id));
 
 			int n = r.ReadInt ();
@@ -1822,11 +1989,13 @@ namespace VitaInjector
 			return res;
 		}
 
-		internal long Type_GetObject (long id) {
+		internal long Type_GetObject (long id)
+		{
 			return SendReceive (CommandSet.TYPE, (int)CmdType.GET_OBJECT, new PacketWriter ().WriteId (id)).ReadId ();
 		}
 
-		internal ValueImpl[] Type_GetValues (long id, long[] fields, long thread_id) {
+		internal ValueImpl[] Type_GetValues (long id, long[] fields, long thread_id)
+		{
 			int len = fields.Length;
 			PacketReader r;
 			if (thread_id != 0)
@@ -1838,13 +2007,15 @@ namespace VitaInjector
 			for (int i = 0; i < len; ++i)
 				res [i] = r.ReadValue ();
 			return res;
-		}			
+		}
 
-		internal void Type_SetValues (long id, long[] fields, ValueImpl[] values) {
+		internal void Type_SetValues (long id, long[] fields, ValueImpl[] values)
+		{
 			SendReceive (CommandSet.TYPE, (int)CmdType.SET_VALUES, new PacketWriter ().WriteId (id).WriteInt (fields.Length).WriteIds (fields).WriteValues (values));
 		}
 
-		internal string[] Type_GetSourceFiles (long id, bool return_full_paths) {
+		internal string[] Type_GetSourceFiles (long id, bool return_full_paths)
+		{
 			var r = SendReceive (CommandSet.TYPE, return_full_paths ? (int)CmdType.GET_SOURCE_FILES_2 : (int)CmdType.GET_SOURCE_FILES, new PacketWriter ().WriteId (id));
 			int len = r.ReadInt ();
 			string[] res = new string [len];
@@ -1853,21 +2024,25 @@ namespace VitaInjector
 			return res;
 		}
 
-		internal bool Type_IsAssignableFrom (long id, long c_id) {
+		internal bool Type_IsAssignableFrom (long id, long c_id)
+		{
 			return SendReceive (CommandSet.TYPE, (int)CmdType.IS_ASSIGNABLE_FROM, new PacketWriter ().WriteId (id).WriteId (c_id)).ReadByte () > 0;
 		}
 
-		internal CattrInfo[] Type_GetCustomAttributes (long id, long attr_type_id, bool inherit) {
+		internal CattrInfo[] Type_GetCustomAttributes (long id, long attr_type_id, bool inherit)
+		{
 			PacketReader r = SendReceive (CommandSet.TYPE, (int)CmdType.GET_CATTRS, new PacketWriter ().WriteId (id).WriteId (attr_type_id));
 			return ReadCattrs (r);
 		}
 
-		internal CattrInfo[] Type_GetFieldCustomAttributes (long id, long field_id, long attr_type_id, bool inherit) {
+		internal CattrInfo[] Type_GetFieldCustomAttributes (long id, long field_id, long attr_type_id, bool inherit)
+		{
 			PacketReader r = SendReceive (CommandSet.TYPE, (int)CmdType.GET_FIELD_CATTRS, new PacketWriter ().WriteId (id).WriteId (field_id).WriteId (attr_type_id));
 			return ReadCattrs (r);
 		}
 
-		internal CattrInfo[] Type_GetPropertyCustomAttributes (long id, long field_id, long attr_type_id, bool inherit) {
+		internal CattrInfo[] Type_GetPropertyCustomAttributes (long id, long field_id, long attr_type_id, bool inherit)
+		{
 			PacketReader r = SendReceive (CommandSet.TYPE, (int)CmdType.GET_PROPERTY_CATTRS, new PacketWriter ().WriteId (id).WriteId (field_id).WriteId (attr_type_id));
 			return ReadCattrs (r);
 		}
@@ -1876,7 +2051,8 @@ namespace VitaInjector
 		 * EVENTS
 		 */
 
-		internal int EnableEvent (EventType etype, SuspendPolicy suspend_policy, List<Modifier> mods) {
+		internal int EnableEvent (EventType etype, SuspendPolicy suspend_policy, List<Modifier> mods)
+		{
 			var w = new PacketWriter ().WriteByte ((byte)etype).WriteByte ((byte)suspend_policy);
 			if (mods != null) {
 				if (mods.Count > 255)
@@ -1925,23 +2101,27 @@ namespace VitaInjector
 			return SendReceive (CommandSet.EVENT_REQUEST, (int)CmdEventRequest.SET, w).ReadInt ();
 		}
 
-		internal void ClearEventRequest (EventType etype, int req_id) {
+		internal void ClearEventRequest (EventType etype, int req_id)
+		{
 			SendReceive (CommandSet.EVENT_REQUEST, (int)CmdEventRequest.CLEAR, new PacketWriter ().WriteByte ((byte)etype).WriteInt (req_id));
-		}			
+		}
 
-		internal void ClearAllBreakpoints () {
+		internal void ClearAllBreakpoints ()
+		{
 			SendReceive (CommandSet.EVENT_REQUEST, (int)CmdEventRequest.CLEAR_ALL_BREAKPOINTS, new PacketWriter ());
 		}
 			
 		/*
 		 * STACK FRAME
 		 */
-		internal ValueImpl StackFrame_GetThis (long thread_id, long id) {
+		internal ValueImpl StackFrame_GetThis (long thread_id, long id)
+		{
 			PacketReader r = SendReceive (CommandSet.STACK_FRAME, (int)CmdStackFrame.GET_THIS, new PacketWriter ().WriteId (thread_id).WriteId (id));
 			return r.ReadValue ();
 		}
 
-		internal ValueImpl[] StackFrame_GetValues (long thread_id, long id, int[] pos) {
+		internal ValueImpl[] StackFrame_GetValues (long thread_id, long id, int[] pos)
+		{
 			/* pos < 0 -> argument at pos (-pos) - 1 */
 			/* pos >= 0 -> local at pos */
 			int len = pos.Length;
@@ -1953,7 +2133,8 @@ namespace VitaInjector
 			return res;
 		}
 
-		internal void StackFrame_SetValues (long thread_id, long id, int[] pos, ValueImpl[] values) {
+		internal void StackFrame_SetValues (long thread_id, long id, int[] pos, ValueImpl[] values)
+		{
 			/* pos < 0 -> argument at pos (-pos) - 1 */
 			/* pos >= 0 -> local at pos */
 			int len = pos.Length;
@@ -1963,7 +2144,8 @@ namespace VitaInjector
 		/*
 		 * ARRAYS
 		 */
-		internal int[] Array_GetLength (long id, out int rank, out int[] lower_bounds) {
+		internal int[] Array_GetLength (long id, out int rank, out int[] lower_bounds)
+		{
 			var r = SendReceive (CommandSet.ARRAY_REF, (int)CmdArrayRef.GET_LENGTH, new PacketWriter ().WriteId (id));
 			rank = r.ReadInt ();
 			int[] res = new int [rank];
@@ -1975,7 +2157,8 @@ namespace VitaInjector
 			return res;
 		}
 
-		internal ValueImpl[] Array_GetValues (long id, int index, int len) {
+		internal ValueImpl[] Array_GetValues (long id, int index, int len)
+		{
 			var r = SendReceive (CommandSet.ARRAY_REF, (int)CmdArrayRef.GET_VALUES, new PacketWriter ().WriteId (id).WriteInt (index).WriteInt (len));
 			ValueImpl[] res = new ValueImpl [len];
 			for (int i = 0; i < len; ++i)
@@ -1983,29 +2166,34 @@ namespace VitaInjector
 			return res;
 		}
 
-		internal void Array_SetValues (long id, int index, ValueImpl[] values) {
+		internal void Array_SetValues (long id, int index, ValueImpl[] values)
+		{
 			SendReceive (CommandSet.ARRAY_REF, (int)CmdArrayRef.SET_VALUES, new PacketWriter ().WriteId (id).WriteInt (index).WriteInt (values.Length).WriteValues (values));
 		}
 
 		/*
 		 * STRINGS
 		 */
-		internal string String_GetValue (long id) {
+		internal string String_GetValue (long id)
+		{
 			return SendReceive (CommandSet.STRING_REF, (int)CmdStringRef.GET_VALUE, new PacketWriter ().WriteId (id)).ReadString ();
 		}			
 
 		/*
 		 * OBJECTS
 		 */
-		internal long Object_GetType (long id) {
+		internal long Object_GetType (long id)
+		{
 			return SendReceive (CommandSet.OBJECT_REF, (int)CmdObjectRef.GET_TYPE, new PacketWriter ().WriteId (id)).ReadId ();
-		}			
+		}
 
-		internal long Object_GetDomain (long id) {
+		internal long Object_GetDomain (long id)
+		{
 			return SendReceive (CommandSet.OBJECT_REF, (int)CmdObjectRef.GET_DOMAIN, new PacketWriter ().WriteId (id)).ReadId ();
-		}			
+		}
 
-		internal ValueImpl[] Object_GetValues (long id, long[] fields) {
+		internal ValueImpl[] Object_GetValues (long id, long[] fields)
+		{
 			int len = fields.Length;
 			PacketReader r = SendReceive (CommandSet.OBJECT_REF, (int)CmdObjectRef.GET_VALUES, new PacketWriter ().WriteId (id).WriteInt (len).WriteIds (fields));
 
@@ -2015,19 +2203,23 @@ namespace VitaInjector
 			return res;
 		}
 
-		internal void Object_SetValues (long id, long[] fields, ValueImpl[] values) {
+		internal void Object_SetValues (long id, long[] fields, ValueImpl[] values)
+		{
 			SendReceive (CommandSet.OBJECT_REF, (int)CmdObjectRef.SET_VALUES, new PacketWriter ().WriteId (id).WriteInt (fields.Length).WriteIds (fields).WriteValues (values));
 		}
 
-		internal bool Object_IsCollected (long id) {
+		internal bool Object_IsCollected (long id)
+		{
 			return SendReceive (CommandSet.OBJECT_REF, (int)CmdObjectRef.IS_COLLECTED, new PacketWriter ().WriteId (id)).ReadInt () == 1;
-		}			
+		}
 
-		internal long Object_GetAddress (long id) {
+		internal long Object_GetAddress (long id)
+		{
 			return SendReceive (CommandSet.OBJECT_REF, (int)CmdObjectRef.GET_ADDRESS, new PacketWriter ().WriteId (id)).ReadLong ();
-		}			
+		}
 
-		internal ObjectRefInfo Object_GetInfo (long id) {
+		internal ObjectRefInfo Object_GetInfo (long id)
+		{
 			ObjectRefInfo res = new ObjectRefInfo ();
 			PacketReader r = SendReceive (CommandSet.OBJECT_REF, (int)CmdObjectRef.GET_INFO, new PacketWriter ().WriteId (id));
 
