@@ -9,7 +9,9 @@ using Sce.PlayStation.HighLevel.UI;
 
 namespace VitaInjectorClient
 {
-	public delegate uint RunCode (uint param);
+	public delegate uint RunCode (IntPtr param);
+	
+	public delegate void WriteLine (string line);
 
 	public delegate IntPtr pss_code_mem_alloc (IntPtr length);
 
@@ -25,6 +27,7 @@ namespace VitaInjectorClient
 		public static IntPtr src = new IntPtr (0);
 		public static byte[] dest = new byte[BLOCK_SIZE];
 		public static byte[] buffer;
+		public static WriteLine output = new WriteLine (Console.WriteLine);
 		
 		public static void Connect ()
 		{
@@ -48,10 +51,10 @@ namespace VitaInjectorClient
 			return buffer;
 		}
 		
-		public static void ExecutePayload (RunCode run)
+		public static void ExecutePayload (RunCode run, IntPtr param)
 		{
-			Console.WriteLine ("Executing with 0x{0:X} in R0.", 0xDEADBEEF);
-			uint ret = run (0xDEADBEEF);
+			Console.WriteLine ("Executing with 0x{0:X} in R0.", param.ToInt32 ());
+			uint ret = run (param);
 			Console.WriteLine ("Function returned value: 0x{0:X}", ret);
 		}
 		

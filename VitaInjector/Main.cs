@@ -69,6 +69,7 @@ namespace VitaInjector
 			v.Start ();
 			AlertClient (v);
 			StartInjection (v, payload);
+			Thread.Sleep (5000); // give it a few seconds
 			v.Stop ();
 		}
 		
@@ -89,6 +90,7 @@ namespace VitaInjector
 			v.Start ();
 			AlertClient (v);
 			StartDump (v, addr, len, dump);
+			Thread.Sleep (5000); // give it a few seconds
 			v.Stop ();
 		}
 		
@@ -255,14 +257,26 @@ namespace VitaInjector
 			ftype.Objid = v.GetTypeObjID (false, "VitaInjectorClient.RunCode");
 			ValueImpl del_injected = v.RunMethod (delforfptr, null, new ValueImpl[]{codeheap, ftype});
 			
+			Console.WriteLine ("Getting delegate to output text.");
+			ValueImpl del_output = v.GetField (false, "VitaInjectorClient.AppMain", "output");
+			
+			Console.WriteLine ("Getting function to turn delegate to function pointer.");
+			long deltofptr = v.GetMethod (true, "System.Runtime.InteropServices.Marshal", "GetFunctionPointerForDelegate", 1, null);
+			if (deltofptr < 0) {
+				Console.WriteLine ("Error getting method.");
+				return;
+			}
+			del_output.Type = ElementType.Object;
+			ValueImpl fptr_output = v.RunMethod (deltofptr, null, new ValueImpl[]{del_output});
+			
 			Console.WriteLine ("Getting helper function to execute payload.");
-			long executepayload = v.GetMethod (false, "VitaInjectorClient.AppMain", "ExecutePayload", 1, null);
+			long executepayload = v.GetMethod (false, "VitaInjectorClient.AppMain", "ExecutePayload", 2, null);
 			if (executepayload < 0) {
 				Console.WriteLine ("Error getting method.");
 				return;
 			}
 			del_injected.Type = ElementType.Object; // must be object
-			v.RunMethod (executepayload, null, new ValueImpl[]{del_injected});
+			v.RunMethod (executepayload, null, new ValueImpl[]{del_injected, fptr_output});
 		}
 		
 		private static void PrintHexDump (byte[] data, uint size, uint num)
@@ -484,7 +498,7 @@ namespace VitaInjector
 			
 			Console.WriteLine ("Waiting for app to start up.");
 			conn.VM_Resume ();
-			Thread.Sleep (10000);
+			Thread.Sleep (15000);
 			Console.WriteLine ("Getting variables.");
 			rootdomain = conn.RootDomain;
 			corlibid = conn.Domain_GetCorlib (rootdomain);
@@ -563,11 +577,13 @@ namespace VitaInjector
 				thisval.Type = (ElementType)0xf0;
 			}
 			ValueImpl ret, exc;
-			if (!paused)
+			if (!paused) {
 				conn.VM_Suspend (); // must be suspended
+			}
 			ret = conn.VM_InvokeMethod (threadid, methodid, thisval, param == null ? new ValueImpl[]{} : param, InvokeFlags.NONE, out exc);
-			if (!paused)
+			if (!paused) {
 				conn.VM_Resume ();
+			}
 			if (ret != null) {
 				return ret;
 			}
