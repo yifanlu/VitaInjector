@@ -20,6 +20,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Externalconsole>true</Externalconsole>
     <Commandlineparameters>inject payload.bin COM10</Commandlineparameters>
+    <DefineConstants>PSM_99</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>none</DebugType>
@@ -43,15 +44,20 @@
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="Connection.cs" />
     <Compile Include="NativeFunctions.cs" />
+    <Compile Include="VitaSerialPort.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
     <EmbeddedResource Include="..\VitaInjectorClient\bin\Debug\VitaInjectorClient.psdp">
       <Link>VitaInjectorClient.psdp</Link>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\VitaInjectorClient0.98\bin\Debug\VitaInjectorClient0.98.psspac">
+      <Link>VitaInjectorClient0.98.psspac</Link>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Include="lib\host_transport64.dll" />
     <None Include="lib\psm_device64.dll" />
+    <None Include="lib\pss_device64.dll" />
   </ItemGroup>
 </Project>

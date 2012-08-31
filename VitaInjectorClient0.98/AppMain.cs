@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 
-using Sce.PlayStation.Core;
-using Sce.PlayStation.Core.Environment;
-using Sce.PlayStation.Core.Graphics;
-using Sce.PlayStation.Core.Input;
-using Sce.PlayStation.HighLevel.UI;
+using Sce.Pss.Core;
+using Sce.Pss.Core.Environment;
+using Sce.Pss.Core.Graphics;
+using Sce.Pss.Core.Input;
+using Sce.Pss.HighLevel.UI;
 
 namespace VitaInjectorClient
 {
@@ -18,19 +17,17 @@ namespace VitaInjectorClient
 
 	public delegate void pss_code_mem_unlock ();
 	
-	public delegate void pss_code_mem_lock ();
-	
 	public class AppMain
 	{
 		private static GraphicsContext graphics;
 		private static Label label;
-		private volatile static bool connected = false;
+		private static bool connected = false;
 		// helper fields for memory dumping
 		public static readonly int BLOCK_SIZE = 0x100;
-		public volatile static IntPtr src = new IntPtr (0);
-		public volatile static byte[] dest = new byte[BLOCK_SIZE];
-		public volatile static byte[] buffer;
-		public volatile static WriteLine output = new WriteLine (Console.WriteLine);
+		public static IntPtr src = new IntPtr (0);
+		public static byte[] dest = new byte[BLOCK_SIZE];
+		public static byte[] buffer;
+		public static WriteLine output = new WriteLine (Console.WriteLine);
 		
 		public static void Connect ()
 		{
@@ -46,12 +43,6 @@ namespace VitaInjectorClient
 			unlock ();
 			Console.WriteLine ("Code block unlocked for writing.");
 			return ret;
-		}
-		
-		public static void RelockCode (pss_code_mem_lock relock)
-		{
-			relock ();
-			Console.WriteLine ("Relocked code block.");
 		}
 		
 		public static byte[] CreateBuffer (int size)

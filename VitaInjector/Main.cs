@@ -5,6 +5,13 @@ using System.Text;
 using System.Threading;
 using Mono.Debugger.Soft;
 
+
+#if PSM_99
+using NativeFunctions = VitaInjector.NativeFunctions99;
+#else
+using NativeFunctions = VitaInjector.NativeFunctions98;
+#endif
+
 namespace VitaInjector
 {
 	class MainClass
@@ -12,6 +19,7 @@ namespace VitaInjector
 		public static readonly int BLOCK_SIZE = 0x100;
 		public static readonly Int64 PSS_CODE_ALLOC_FUNC = -2083199240;
 		public static readonly Int64 PSS_CODE_UNLOCK = -2083202120;
+		public static readonly Int64 PSS_CODE_LOCK = -2083202040;
 		
 		public static void PrintHelp ()
 		{
@@ -69,7 +77,7 @@ namespace VitaInjector
 			v.Start ();
 			AlertClient (v);
 			StartInjection (v, payload);
-			Thread.Sleep (5000); // give it a few seconds
+			Thread.Sleep (50000); // give it a few seconds
 			v.Stop ();
 		}
 		
@@ -194,6 +202,20 @@ namespace VitaInjector
 			lenval.Value = payload.Length;
 			v.RunMethod (writeint32, null, new ValueImpl[]{lenptr, lenval});
 			
+			Console.WriteLine ("Getting helper function to create buffer on Vita.");
+			long createbuffer = v.GetMethod (false, "VitaInjectorClient.AppMain", "CreateBuffer", 1, null);
+			if (createbuffer < 0) {
+				Console.WriteLine ("Error getting method.");
+				return;
+			}
+			ValueImpl buffer = v.RunMethod (createbuffer, null, new ValueImpl[]{lenval});
+			
+			Console.WriteLine ("Writing payload to Vita's buffer.");
+			for (int k = 0; k < payload.Length; k += BLOCK_SIZE) {
+				Console.WriteLine ("Writing 0x{0:X}...", k);
+				v.SetArray (buffer.Objid, payload, k, (k + BLOCK_SIZE > payload.Length) ? payload.Length - k : BLOCK_SIZE);
+			}
+			
 			Console.WriteLine ("Getting delegate to pss_code_mem_alloc().");
 			long delforfptr = v.GetMethod (true, "System.Runtime.InteropServices.Marshal", "GetDelegateForFunctionPointer", 2, null);
 			if (delforfptr < 0) {
@@ -214,6 +236,18 @@ namespace VitaInjector
 			fptr.Fields [0].Value = PSS_CODE_UNLOCK;
 			ftype.Objid = v.GetTypeObjID (false, "VitaInjectorClient.pss_code_mem_unlock");
 			ValueImpl del_code_unlock = v.RunMethod (delforfptr, null, new ValueImpl[]{fptr, ftype});
+			Console.WriteLine ("Getting delegate to pss_code_mem_lock().");
+			fptr.Fields [0].Value = PSS_CODE_LOCK;
+			ftype.Objid = v.GetTypeObjID (false, "VitaInjectorClient.pss_code_mem_lock");
+			ValueImpl del_code_lock = v.RunMethod (delforfptr, null, new ValueImpl[]{fptr, ftype});
+			
+			Console.WriteLine ("Getting method to relock code memory.");
+			long relock = v.GetMethod (false, "VitaInjectorClient.AppMain", "RelockCode", 1, null);
+			if (relock < 0) {
+				Console.WriteLine ("Error getting method.");
+				return;
+			}
+			del_code_lock.Type = ElementType.Object;
 			
 			Console.WriteLine ("Getting helper function to create code block.");
 			long alloccode = v.GetMethod (false, "VitaInjectorClient.AppMain", "AllocCode", 3, null);
@@ -224,23 +258,8 @@ namespace VitaInjector
 			// must be objects
 			del_code_alloc.Type = ElementType.Object;
 			del_code_unlock.Type = ElementType.Object;
-			ValueImpl codeheap = v.RunMethod (alloccode, null, new ValueImpl[]{del_code_alloc, del_code_unlock, lenptr});
 			
-			Console.WriteLine ("Getting helper function to create buffer on Vita.");
-			long createbuffer = v.GetMethod (false, "VitaInjectorClient.AppMain", "CreateBuffer", 1, null);
-			if (createbuffer < 0) {
-				Console.WriteLine ("Error getting method.");
-				return;
-			}
-			ValueImpl buffer = v.RunMethod (createbuffer, null, new ValueImpl[]{lenval});
-			
-			Console.WriteLine ("Writing payload to Vita's buffer.");
-			for (int k = 0; k < payload.Length; k += BLOCK_SIZE) {
-				Console.WriteLine ("Writing 0x{0:X}...", k);
-				v.SetArray (buffer.Objid, payload, k, (k + BLOCK_SIZE > payload.Length) ? payload.Length - k : BLOCK_SIZE);
-			}
-			
-			Console.WriteLine ("Moving payload to executable memory.");
+			Console.WriteLine ("Getting method to copy payload to executable memory.");
 			long copy = v.GetMethod (true, "System.Runtime.InteropServices.Marshal", "Copy", 4, new string[]{"Byte[]", "Int32", "IntPtr", "Int32"});
 			if (copy < 0) {
 				Console.WriteLine ("Error getting method.");
@@ -250,7 +269,13 @@ namespace VitaInjector
 			sti.Type = ElementType.I4;
 			sti.Value = 0;
 			buffer.Type = ElementType.Object;
+			
+			Console.WriteLine ("Running methods to inject payload.");
+			ValueImpl codeheap = v.RunMethod (alloccode, null, new ValueImpl[]{del_code_alloc, del_code_unlock, lenptr});
 			v.RunMethod (copy, null, new ValueImpl[]{buffer, sti, codeheap, lenval});
+			v.RunMethod (relock, null, new ValueImpl[]{del_code_lock});
+			
+			Thread.Sleep (5000); // must do this since 1.80
 			
 			Console.WriteLine ("Creating a function delegate on buffer.");
 			codeheap.Fields [0].Value = (Int64)codeheap.Fields [0].Value + 1; // thumb2 code
@@ -276,6 +301,7 @@ namespace VitaInjector
 				return;
 			}
 			del_injected.Type = ElementType.Object; // must be object
+			Console.WriteLine ("Running payload.");
 			v.RunMethod (executepayload, null, new ValueImpl[]{del_injected, fptr_output});
 		}
 		
@@ -313,57 +339,102 @@ namespace VitaInjector
 	
 	class VitaConnection : Connection
 	{
-		private int handle;
+		private int handle99;
+		private VitaSerialPort98 handle98;
 		
 		public VitaConnection (string port)
 		{
-			this.handle = NativeFunctions.CreateFile (1, @"\\.\" + port);
-			if (this.handle < 0) {
+#if PSM_99
+			this.handle99 = NativeFunctionsTransport.CreateFile (1, @"\\.\" + port);
+			if (this.handle99 < 0) {
 				throw new IOException ("Error opening port for connection.");
 			}
+#else
+			this.handle98 = new VitaSerialPort98 (port);
+			ConnectPort ();
+#endif
 		}
 		
-		public VitaConnection (int handle)
+		private void ConnectPort ()
 		{
-			this.handle = handle;
+		    int num = 0;
+		    while (true)
+		    {
+		        try
+		        {
+		            this.handle98.Open();
+		            this.handle98.DtrEnable = true;
+		            this.handle98.RtsEnable = true;
+		            return;
+		        }
+		        catch (IOException)
+		        {
+		            this.handle98.Dispose();
+		            if ((++num * 50) > 0x2710)
+		            {
+		                throw;
+		            }
+		        }
+		        Thread.Sleep(50);
+		    }
 		}
 		
 		protected override void TransportClose ()
 		{
-			NativeFunctions.CloseHandle (1, handle);
-			this.handle = -1;
+#if PSM_99
+			NativeFunctionsTransport.CloseHandle (1, handle99);
+			this.handle99 = -1;
+#else
+			this.handle98.Close();
+#endif
 		}
 		
 		protected override unsafe int TransportReceive (byte[] buf, int buf_offset, int len)
 		{
-			while (this.handle != -1) {
-				int recieve = NativeFunctions.GetReceiveSize (1, this.handle);
+#if PSM_99
+			while (this.handle99 != -1) {
+				int recieve = NativeFunctionsTransport.GetReceiveSize (1, this.handle99);
 				uint read = 0;
 				if (recieve >= len) {
 					fixed (byte* p_buf = buf) {
-						if (NativeFunctions.ReadFile (1, this.handle, (IntPtr)(p_buf + buf_offset), (uint)len, out read) == 0) {
+						if (NativeFunctionsTransport.ReadFile (1, this.handle99, (IntPtr)(p_buf + buf_offset), (uint)len, out read) == 0) {
 							throw new IOException ("Cannot read from Vita.");
 						} else {
 							return (int)read;
 						}
 					}
 				}
+		        //Thread.Sleep(30);
 			}
+#else
+			while (this.handle98.IsOpen)
+		    {
+		        if (this.handle98.BytesToRead >= len)
+		        {
+		            return this.handle98.Read(buf, buf_offset, len);
+		        }
+		        //Thread.Sleep(30);
+		    }
+#endif
 			return 0;
 		}
 		
 		protected override unsafe int TransportSend (byte[] buf, int buf_offset, int len)
 		{
+#if PSM_99
 			int towrite = len;
 			uint written = 0;
 			fixed (byte* p_buf = buf) {
 				while (towrite > 0) {
-					if (NativeFunctions.WriteFile (1, this.handle, (IntPtr)(p_buf + buf_offset), (uint)towrite, out written) == 0) {
+					if (NativeFunctionsTransport.WriteFile (1, this.handle99, (IntPtr)(p_buf + buf_offset), (uint)towrite, out written) == 0) {
 						throw new IOException ("Cannot write to Vita.");
 					}
 					towrite -= (int)written;
 				}
 			}
+#else
+			this.handle98.Write(buf, buf_offset, len);
+#endif
 			return len;
 		}
 		
@@ -395,7 +466,11 @@ namespace VitaInjector
 	
 	class Vita
 	{
+#if PSM_99
 		public static string PKG_NAME = "VitaInjectorClient";
+#else
+		public static string PKG_NAME = "VitaInjectorClient0.98";
+#endif
 		private string port;
 		private long rootdomain = -1, threadid = -1, corlibid = -1, assid = -1;
 		private volatile int handle;
@@ -458,7 +533,7 @@ namespace VitaInjector
 			this.handle = NativeFunctions.Connect (ref devId);
 			if (this.handle < 0) {
 				StringBuilder strb = new StringBuilder ();
-				NativeFunctions.GetErrStr (strb);
+				//NativeFunctions99.GetErrStr (strb);
 				Console.WriteLine ("Error: {0}", strb.ToString ());
 				return;
 			}
@@ -468,7 +543,12 @@ namespace VitaInjector
 			
 			Console.WriteLine ("Extracting client package.");
 			string package = Path.GetTempFileName ();
-			Stream resPkg = Assembly.GetExecutingAssembly ().GetManifestResourceStream ("VitaInjector.VitaInjectorClient.psdp");
+			Stream resPkg;
+#if PSM_99
+			resPkg = Assembly.GetExecutingAssembly ().GetManifestResourceStream ("VitaInjector.VitaInjectorClient.psdp");
+#else
+			resPkg = Assembly.GetExecutingAssembly ().GetManifestResourceStream ("VitaInjector.VitaInjectorClient0.98.psspac");
+#endif
 			FileStream outPkg = File.OpenWrite (package);
 			byte[] buff = new byte[MainClass.BLOCK_SIZE];
 			int len;
