@@ -8,3 +8,6 @@ From "C:\Program Files (x86)\SCE\PSM\tools\PsmStudio\bin"
 Mono.Cecil.dll
 
 Put them all in .\VitaInjector\lib\
+
+First open and build .\VitaInjectorClient\VitaInjectorClient.sln
+Then open and build .\VitaInjector.sln, which will automatically find the package.

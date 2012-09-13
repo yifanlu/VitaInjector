@@ -11,5 +11,8 @@ Thumbs.db
 *.dll
 *.userprefs
 *.pidb
+*.bin
+*.elf
+*.self
 bin/
 obj/
