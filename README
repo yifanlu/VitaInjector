@@ -9,5 +9,10 @@ Mono.Cecil.dll
 
 Put them all in .\VitaInjector\lib\
 
+Launching an ELF:
+
+First build uvloader.bin and place it in .\VitaInjectorClient\uvloader.bin
+Now build your ELF/SELF and place it in .\VitaInjectorClient\homebrew.self
+
 First open and build .\VitaInjectorClient\VitaInjectorClient.sln
 Then open and build .\VitaInjector.sln, which will automatically find the package.

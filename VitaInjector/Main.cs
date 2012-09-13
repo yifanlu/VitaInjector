@@ -28,6 +28,8 @@ namespace VitaInjector
 				"    mode:\n" +
 				"        l[oad]      launch UVLoader\n" +
 				"        d[ump]      dump portion of the memory\n" +
+				"    options (load only):\n" +
+				"        file        homebrew ELF to launch\n" +
 				"    options (dump only):\n" +
 				"        address     address to start dumping\n" +
 				"        len         length of dump\n" +
@@ -64,13 +66,23 @@ namespace VitaInjector
 		
 		public static void LoadMain (string[] args)
 		{
-			if (args.Length < 2) {
+			if (args.Length < 3) {
 				Console.WriteLine ("error: not enough arguments.");
 				PrintHelp ();
 				return;
 			}
-			string port = args [1];
-			Vita v = new Vita (port);
+			if (!File.Exists ("uvloader.bin")) {
+				Console.WriteLine ("error: cannot find uvloader.bin");
+				return;
+			}
+			if (!Directory.Exists ("LoaderClient")) {
+				Console.WriteLine ("error: cannot find LoaderClient directory");
+				return;
+			}
+			string port = args [2];
+			string toload = args [1];
+			string package = GetLoaderPackage (toload);
+			Vita v = new Vita (port, package);
 			v.Start ();
 			AlertClient (v);
 			StartUVLoader (v);
@@ -91,11 +103,11 @@ namespace VitaInjector
 			addr = Convert.ToUInt32 (args [1], args [1].StartsWith ("0x") ? 16 : 10);
 			len = Convert.ToUInt32 (args [2], args [2].StartsWith ("0x") ? 16 : 10);
 			dump = File.OpenWrite (args [3]);
-			Vita v = new Vita (port);
+			string package = GetDumpMemoryPackage ();
+			Vita v = new Vita (port, package);
 			v.Start ();
-			AlertClient (v);
 			StartDump (v, addr, len, dump);
-			Thread.Sleep (5000); // give it a few seconds
+			//Thread.Sleep (5000); // give it a few seconds
 			v.Stop ();
 		}
 		
@@ -118,9 +130,9 @@ namespace VitaInjector
 			// weird address format for IntPtr on vita
 			Int64 src_addr = BitConverter.ToInt64 (new byte[]{0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}, 0);
 			src_addr += addr;
-			ValueImpl dest = v.GetField (false, "VitaInjectorClient.AppMain", "dest");
+			ValueImpl dest = v.GetField (false, "DumpMemory.AppMain", "dest");
 			dest.Type = ElementType.Object; // must be done
-			ValueImpl src = v.GetField (false, "VitaInjectorClient.AppMain", "src");
+			ValueImpl src = v.GetField (false, "DumpMemory.AppMain", "src");
 			if (dest == null) {
 				Console.WriteLine ("Cannot find buffer to write to.");
 				return;
@@ -341,6 +353,41 @@ namespace VitaInjector
 				Console.WriteLine ();
 			}
 		}
+		
+		private static string GetDumpMemoryPackage ()
+		{
+			Console.WriteLine ("Extracting client package.");
+			string package = Path.GetTempFileName ();
+			Stream resPkg;
+#if PSM_99
+			resPkg = Assembly.GetExecutingAssembly ().GetManifestResourceStream ("VitaInjector.DumpMemory.psdp");
+#else
+			resPkg = Assembly.GetExecutingAssembly ().GetManifestResourceStream ("VitaInjector.DumpMemory0.98.psspac");
+#endif
+			FileStream outPkg = File.OpenWrite (package);
+			byte[] buff = new byte[MainClass.BLOCK_SIZE];
+			int len;
+			while ((len = resPkg.Read(buff, 0, MainClass.BLOCK_SIZE)) > 0) {
+				outPkg.Write (buff, 0, len);
+			}
+			resPkg.Close ();
+			outPkg.Close ();
+			
+			return package;
+		}
+		
+		private static string GetLoaderPackage (string toload)
+		{
+			Console.WriteLine ("Copying files.");
+			File.Copy ("uvloader.bin", "LoaderClient/Application/uvloader.bin");
+			File.Copy (toload, "LoaderClient/Application/homebrew.self");
+			Console.WriteLine ("Generating package.");
+			string package = Path.GetTempFileName ();
+			NativeFunctions.CreatePackage (package, "LoaderClient");
+			File.Delete ("LoaderClient/Application/uvloader.bin");
+			File.Delete ("LoaderClient/Application/homebrew.self");
+			return package;
+		}
 	}
 	
 	class VitaConnection : Connection
@@ -481,10 +528,12 @@ namespace VitaInjector
 		private long rootdomain = -1, threadid = -1, corlibid = -1, assid = -1;
 		private volatile int handle;
 		private VitaConnection conn;
+		private string package;
 		
-		public Vita (string portstr)
+		public Vita (string portstr, string packagename)
 		{
 			this.port = portstr;
+			this.package = packagename;
 		}
 		
 		private static void ConsoleOutput (string message)
@@ -546,23 +595,6 @@ namespace VitaInjector
 			PsmDeviceConsoleCallback callback = new PsmDeviceConsoleCallback (ConsoleOutput);
 			Console.WriteLine ("Setting console callback.");
 			NativeFunctions.SetConsoleCallback (callback);
-			
-			Console.WriteLine ("Extracting client package.");
-			string package = Path.GetTempFileName ();
-			Stream resPkg;
-#if PSM_99
-			resPkg = Assembly.GetExecutingAssembly ().GetManifestResourceStream ("VitaInjector.VitaInjectorClient.psdp");
-#else
-			resPkg = Assembly.GetExecutingAssembly ().GetManifestResourceStream ("VitaInjector.VitaInjectorClient0.98.psspac");
-#endif
-			FileStream outPkg = File.OpenWrite (package);
-			byte[] buff = new byte[MainClass.BLOCK_SIZE];
-			int len;
-			while ((len = resPkg.Read(buff, 0, MainClass.BLOCK_SIZE)) > 0) {
-				outPkg.Write (buff, 0, len);
-			}
-			resPkg.Close ();
-			outPkg.Close ();
 			
 			Console.WriteLine ("Installing package {0} as {1}.", package, PKG_NAME);
 			if (NativeFunctions.Install (this.handle, package, PKG_NAME) != 0) {

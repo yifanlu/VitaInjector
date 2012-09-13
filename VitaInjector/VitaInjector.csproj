@@ -48,16 +48,10 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <EmbeddedResource Include="..\VitaInjectorClient\bin\Debug\VitaInjectorClient.psdp">
-      <Link>VitaInjectorClient.psdp</Link>
-    </EmbeddedResource>
-    <EmbeddedResource Include="..\VitaInjectorClient0.98\bin\Debug\VitaInjectorClient0.98.psspac">
-      <Link>VitaInjectorClient0.98.psspac</Link>
-    </EmbeddedResource>
+    <Content Include="lib\host_transport64.dll" />
+    <Content Include="lib\psm_device64.dll" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="lib\host_transport64.dll" />
-    <None Include="lib\psm_device64.dll" />
-    <None Include="lib\pss_device64.dll" />
+    <EmbeddedResource Include="DumpMemory.psdp" />
   </ItemGroup>
 </Project>
