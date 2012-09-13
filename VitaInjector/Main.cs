@@ -114,7 +114,7 @@ namespace VitaInjector
 		public static void AlertClient (Vita v)
 		{
 			Console.WriteLine ("Alerting Vita of connection.");
-			long connectmethod = v.GetMethod (false, "VitaInjectorClient.AppMain", "Connect", 0, null);
+			long connectmethod = v.GetMethod (false, "LoaderClient.AppMain", "Connect", 0, null);
 			if (connectmethod < 0) {
 				Console.WriteLine ("Cannot find Connect() methond on device.");
 			}
@@ -190,7 +190,7 @@ namespace VitaInjector
 		public static void StartUVLoader (Vita v)
 		{
 			Console.WriteLine ("Loading UVL to memory.");
-			long loaduvl = v.GetMethod (false, "VitaInjectorClient.AppMain", "LoadUVL", 0, null);
+			long loaduvl = v.GetMethod (false, "LoaderClient.AppMain", "LoadUVL", 0, null);
 			if (loaduvl < 0) {
 				Console.WriteLine ("Error getting method.");
 				return;
@@ -242,19 +242,19 @@ namespace VitaInjector
 			fptr.Fields [0].Value = PSS_CODE_ALLOC_FUNC;
 			ValueImpl ftype = new ValueImpl ();
 			ftype.Type = ElementType.Object;
-			ftype.Objid = v.GetTypeObjID (false, "VitaInjectorClient.pss_code_mem_alloc");
+			ftype.Objid = v.GetTypeObjID (false, "LoaderClient.pss_code_mem_alloc");
 			ValueImpl del_code_alloc = v.RunMethod (delforfptr, null, new ValueImpl[]{fptr, ftype});
 			Console.WriteLine ("Getting delegate to pss_code_mem_unlock().");
 			fptr.Fields [0].Value = PSS_CODE_UNLOCK;
-			ftype.Objid = v.GetTypeObjID (false, "VitaInjectorClient.pss_code_mem_unlock");
+			ftype.Objid = v.GetTypeObjID (false, "LoaderClient.pss_code_mem_unlock");
 			ValueImpl del_code_unlock = v.RunMethod (delforfptr, null, new ValueImpl[]{fptr, ftype});
 			Console.WriteLine ("Getting delegate to pss_code_mem_lock().");
 			fptr.Fields [0].Value = PSS_CODE_LOCK;
-			ftype.Objid = v.GetTypeObjID (false, "VitaInjectorClient.pss_code_mem_lock");
+			ftype.Objid = v.GetTypeObjID (false, "LoaderClient.pss_code_mem_lock");
 			ValueImpl del_code_lock = v.RunMethod (delforfptr, null, new ValueImpl[]{fptr, ftype});
 			
 			Console.WriteLine ("Getting helper function to create code block.");
-			long alloccode = v.GetMethod (false, "VitaInjectorClient.AppMain", "AllocCode", 3, null);
+			long alloccode = v.GetMethod (false, "LoaderClient.AppMain", "AllocCode", 3, null);
 			if (alloccode < 0) {
 				Console.WriteLine ("Error getting method.");
 				return;
@@ -275,7 +275,7 @@ namespace VitaInjector
 			buffer.Type = ElementType.Object;
 			
 			Console.WriteLine ("Getting method to relock code memory.");
-			long relock = v.GetMethod (false, "VitaInjectorClient.AppMain", "RelockCode", 1, null);
+			long relock = v.GetMethod (false, "LoaderClient.AppMain", "RelockCode", 1, null);
 			if (relock < 0) {
 				Console.WriteLine ("Error getting method.");
 				return;
@@ -295,12 +295,12 @@ namespace VitaInjector
 			
 			Console.WriteLine ("Creating a function delegate on buffer.");
 			codeheap.Fields [0].Value = (Int64)codeheap.Fields [0].Value + 1; // thumb2 code
-			ftype.Objid = v.GetTypeObjID (false, "VitaInjectorClient.RunCode");
+			ftype.Objid = v.GetTypeObjID (false, "LoaderClient.RunCode");
 			ValueImpl del_injected = v.RunMethod (delforfptr, null, new ValueImpl[]{codeheap, ftype});
 			
 #if false
 			Console.WriteLine ("Getting delegate to output text.");
-			ValueImpl del_output = v.GetField (false, "VitaInjectorClient.AppMain", "output");
+			ValueImpl del_output = v.GetField (false, "LoaderClient.AppMain", "output");
 			
 			Console.WriteLine ("Getting function to turn delegate to function pointer.");
 			long deltofptr = v.GetMethod (true, "System.Runtime.InteropServices.Marshal", "GetFunctionPointerForDelegate", 1, null);
@@ -313,7 +313,7 @@ namespace VitaInjector
 #endif
 			
 			Console.WriteLine ("Getting helper function to execute payload.");
-			long executepayload = v.GetMethod (false, "VitaInjectorClient.AppMain", "ExecutePayload", 1, null);
+			long executepayload = v.GetMethod (false, "LoaderClient.AppMain", "ExecutePayload", 1, null);
 			if (executepayload < 0) {
 				Console.WriteLine ("Error getting method.");
 				return;

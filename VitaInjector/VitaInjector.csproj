@@ -18,7 +18,7 @@
     <OutputPath>bin\Debug</OutputPath>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Commandlineparameters>load COM10</Commandlineparameters>
+    <Commandlineparameters>load homebrew.self COM10</Commandlineparameters>
     <DefineConstants>PSM_99</DefineConstants>
     <ConsolePause>false</ConsolePause>
   </PropertyGroup>
