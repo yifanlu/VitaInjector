@@ -9,10 +9,10 @@ Mono.Cecil.dll
 
 Put them all in .\VitaInjector\lib\
 
-Launching an ELF:
+Building VitaInjector:
 
-First build uvloader.bin and place it in .\VitaInjectorClient\uvloader.bin
-Now build your ELF/SELF and place it in .\VitaInjectorClient\homebrew.self
-
-First open and build .\VitaInjectorClient\VitaInjectorClient.sln
-Then open and build .\VitaInjector.sln, which will automatically find the package.
+First build VitaInjector (Debug) by building .\VitaInjector\VitaInjector.sln
+Next build the loader client (Debug) by building .\LoaderClient\LoaderClient.sln
+Rename .\LoaderClient\bin\Debug\LoaderClient-unsigned to LoaderClient
+Copy LoaderClient to .\VitaInjector\bin\Debug
+Copy contents of .\VitaInjector\lib\ to .\VitaInjector\bin\Debug
