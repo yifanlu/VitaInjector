@@ -1,18 +1,12 @@
 using System;
-using System.Collections.Generic;
+using System.IO;
 using System.Threading;
-
-using Sce.PlayStation.Core;
-using Sce.PlayStation.Core.Environment;
-using Sce.PlayStation.Core.Graphics;
-using Sce.PlayStation.Core.Input;
-using Sce.PlayStation.HighLevel.UI;
+using System.Net;
+using System.Net.Sockets;
 
 namespace VitaInjectorClient
 {
-	public delegate uint RunCode (IntPtr param);
-	
-	public delegate void WriteLine (string line);
+	public delegate uint RunCode ();
 
 	public delegate IntPtr pss_code_mem_alloc (IntPtr length);
 
@@ -22,20 +16,17 @@ namespace VitaInjectorClient
 	
 	public class AppMain
 	{
-		private static GraphicsContext graphics;
-		private static Label label;
-		private volatile static bool connected = false;
-		// helper fields for memory dumping
-		public static readonly int BLOCK_SIZE = 0x100;
-		public volatile static IntPtr src = new IntPtr (0);
-		public volatile static byte[] dest = new byte[BLOCK_SIZE];
+		public static readonly string UVLOADER_PATH = "/Application/uvloader.bin";
+		public static readonly string HOMEBREW_PATH = "/Application/homebrew.self";
+		public static readonly string DECRYPTED_PATH = "/Temp/homebrew.self";
+		public static readonly string LOG_PATH = "/Temp/uvloader.log";
 		public volatile static byte[] buffer;
-		public volatile static WriteLine output = new WriteLine (Console.WriteLine);
 		
 		public static void Connect ()
 		{
-			connected = true;
-			label.Text = "Connected.";
+			Console.WriteLine ("Connected to PC.");
+			Thread logWat = new Thread (new ThreadStart (LogWatcher));
+			logWat.Start ();
 		}
 		
 		public static IntPtr AllocCode (pss_code_mem_alloc alloc, pss_code_mem_unlock unlock, IntPtr p_len)
@@ -54,63 +45,62 @@ namespace VitaInjectorClient
 			Console.WriteLine ("Relocked code block.");
 		}
 		
-		public static byte[] CreateBuffer (int size)
+		public static byte[] LoadUVL ()
 		{
-			buffer = new byte[size];
+			buffer = File.ReadAllBytes (UVLOADER_PATH);
+			Console.WriteLine ("Read {0} bytes", buffer.Length);
 			return buffer;
 		}
 		
-		public static void ExecutePayload (RunCode run, IntPtr param)
+		public static void ExecutePayload (RunCode run)
 		{
-			Console.WriteLine ("Executing with 0x{0:X} in R0.", param.ToInt32 ());
-			uint ret = run (param);
-			Console.WriteLine ("Function returned value: 0x{0:X}", ret);
+			Console.WriteLine ("Decrypting homebrew.");
+			File.WriteAllBytes (DECRYPTED_PATH, File.ReadAllBytes (HOMEBREW_PATH));
+			Console.WriteLine ("Executing payload.");
+			uint ret = run ();
+			Console.WriteLine ("Payload returned value: 0x{0:X}", ret);
+		}
+		
+		public static void LogWatcher ()
+		{
+			FileStream log = new FileStream (LOG_PATH, FileMode.OpenOrCreate, FileAccess.Read, FileShare.ReadWrite);
+#if NETWORK_LOGGING
+			TcpListener listener = new TcpListener (IPAddress.Parse("0.0.0.0"), 5555);
+			listener.Start ();
+			Console.WriteLine ("Waiting for connection.");
+			Socket sock = listener.AcceptSocket ();
+			Console.WriteLine ("Found client.");
+			NetworkStream netstream = new NetworkStream (sock);
+			StreamWriter sw = new StreamWriter(netstream);
+#endif
+			StreamReader sr = new StreamReader (log);
+			Console.WriteLine ("Log watcher started.");
+			string line;
+			for (;;) {
+				line = sr.ReadLine ();
+				if (line != null) {
+#if NETWORK_LOGGING
+					sw.WriteLine(line);
+#else
+					Console.Write (line);
+#endif
+					continue;
+				}
+				//Thread.Sleep (1000);
+			}
 		}
 		
 		public static void Main (string[] args)
 		{
-			Initialize ();
-
-			while (true) {
-				SystemEvents.CheckEvents ();
-				Update ();
-				Render ();
+			if (!File.Exists (UVLOADER_PATH)) {
+				Console.WriteLine ("Cannot find UVLoader payload.");
 			}
-		}
-
-		public static void Initialize ()
-		{
-			// Set up the graphics system
-			graphics = new GraphicsContext ();
+			if (!File.Exists (HOMEBREW_PATH)) {
+				Console.WriteLine ("Cannot find homebrew to load.");
+			}
 			
-			UISystem.Initialize (graphics);
-			Scene myScene = new Scene ();
-			label = new Label ();
-			label.X = 10.0f;
-			label.Y = 10.0f;
-			label.Width = 300.0f;
-			label.Text = "Waiting for connection...";
-			myScene.RootWidget.AddChildLast (label);
-			
-			UISystem.SetScene (myScene, null);
-		}
-
-		public static void Update ()
-		{
-			List<TouchData> touchDataList = Touch.GetData (0);
-			UISystem.Update (touchDataList);
-		}
-
-		public static void Render ()
-		{
-			// Clear the screen
-			graphics.SetClearColor (0.0f, 0.0f, 0.0f, 0.0f);
-			graphics.Clear ();
-			
-			UISystem.Render ();
-
-			// Present the screen
-			graphics.SwapBuffers ();
+			// this thread idle
+			for (;;);
 		}
 	}
 }

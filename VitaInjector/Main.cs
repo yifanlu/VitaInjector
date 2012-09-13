@@ -26,11 +26,9 @@ namespace VitaInjector
 			Console.WriteLine (
 				"usage: VitaInjector.exe mode (file|address len out) port\n" +
 				"    mode:\n" +
-				"        i[nject]    inject code and execute it\n" +
+				"        l[oad]      launch UVLoader\n" +
 				"        d[ump]      dump portion of the memory\n" +
-				"    options (inject):\n" +
-				"        file        binary file of ARM code\n" +
-				"    options (dump):\n" +
+				"    options (dump only):\n" +
 				"        address     address to start dumping\n" +
 				"        len         length of dump\n" +
 				"        out         file to dump to\n" +
@@ -50,8 +48,8 @@ namespace VitaInjector
 				return;
 			}
 			switch (args [0].ToCharArray () [0]) {
-			case 'i':
-				InjectMain (args);
+			case 'l':
+				LoadMain (args);
 				break;
 			case 'd':
 				DumpMain (args);
@@ -64,20 +62,19 @@ namespace VitaInjector
 			}
 		}
 		
-		public static void InjectMain (string[] args)
+		public static void LoadMain (string[] args)
 		{
-			if (args.Length < 3) {
+			if (args.Length < 2) {
 				Console.WriteLine ("error: not enough arguments.");
 				PrintHelp ();
 				return;
 			}
-			string port = args [2];
-			byte[] payload = File.ReadAllBytes (args [1]);
+			string port = args [1];
 			Vita v = new Vita (port);
 			v.Start ();
 			AlertClient (v);
-			StartInjection (v, payload);
-			Thread.Sleep (50000); // give it a few seconds
+			StartUVLoader (v);
+			//Thread.Sleep (50000); // give it a few seconds
 			v.Stop ();
 		}
 		
@@ -178,9 +175,17 @@ namespace VitaInjector
 			v.Resume ();
 		}
 		
-		public static void StartInjection (Vita v, byte[] payload)
+		public static void StartUVLoader (Vita v)
 		{
-			Console.WriteLine ("Allocating space for length int.");
+			Console.WriteLine ("Loading UVL to memory.");
+			long loaduvl = v.GetMethod (false, "VitaInjectorClient.AppMain", "LoadUVL", 0, null);
+			if (loaduvl < 0) {
+				Console.WriteLine ("Error getting method.");
+				return;
+			}
+			ValueImpl buffer = v.RunMethod (loaduvl, null, new ValueImpl[]{});
+			
+			Console.WriteLine ("Allocating space for length of UVL.");
 			long alloc = v.GetMethod (true, "System.Runtime.InteropServices.Marshal", "AllocHGlobal", 1, new string[]{"Int32"});
 			if (alloc < 0) {
 				Console.WriteLine ("Error getting method.");
@@ -191,6 +196,15 @@ namespace VitaInjector
 			lenlen.Value = 4; // 4 bytes int
 			ValueImpl lenptr = v.RunMethod (alloc, null, new ValueImpl[]{lenlen});
 			
+			Console.WriteLine ("Getting length of UVL");
+			int length = v.GetArrayLength(buffer.Objid);
+			if (length < 0)
+			{
+				Console.WriteLine ("Invalid length.");
+				return;
+			}
+			Console.WriteLine ("Length is {0} bytes.", length);
+			
 			Console.WriteLine ("Writing length to heap.");
 			long writeint32 = v.GetMethod (true, "System.Runtime.InteropServices.Marshal", "WriteInt32", 2, null);
 			if (writeint32 < 0) {
@@ -199,22 +213,8 @@ namespace VitaInjector
 			}
 			ValueImpl lenval = new ValueImpl ();
 			lenval.Type = ElementType.I4;
-			lenval.Value = payload.Length;
+			lenval.Value = length;
 			v.RunMethod (writeint32, null, new ValueImpl[]{lenptr, lenval});
-			
-			Console.WriteLine ("Getting helper function to create buffer on Vita.");
-			long createbuffer = v.GetMethod (false, "VitaInjectorClient.AppMain", "CreateBuffer", 1, null);
-			if (createbuffer < 0) {
-				Console.WriteLine ("Error getting method.");
-				return;
-			}
-			ValueImpl buffer = v.RunMethod (createbuffer, null, new ValueImpl[]{lenval});
-			
-			Console.WriteLine ("Writing payload to Vita's buffer.");
-			for (int k = 0; k < payload.Length; k += BLOCK_SIZE) {
-				Console.WriteLine ("Writing 0x{0:X}...", k);
-				v.SetArray (buffer.Objid, payload, k, (k + BLOCK_SIZE > payload.Length) ? payload.Length - k : BLOCK_SIZE);
-			}
 			
 			Console.WriteLine ("Getting delegate to pss_code_mem_alloc().");
 			long delforfptr = v.GetMethod (true, "System.Runtime.InteropServices.Marshal", "GetDelegateForFunctionPointer", 2, null);
@@ -241,14 +241,6 @@ namespace VitaInjector
 			ftype.Objid = v.GetTypeObjID (false, "VitaInjectorClient.pss_code_mem_lock");
 			ValueImpl del_code_lock = v.RunMethod (delforfptr, null, new ValueImpl[]{fptr, ftype});
 			
-			Console.WriteLine ("Getting method to relock code memory.");
-			long relock = v.GetMethod (false, "VitaInjectorClient.AppMain", "RelockCode", 1, null);
-			if (relock < 0) {
-				Console.WriteLine ("Error getting method.");
-				return;
-			}
-			del_code_lock.Type = ElementType.Object;
-			
 			Console.WriteLine ("Getting helper function to create code block.");
 			long alloccode = v.GetMethod (false, "VitaInjectorClient.AppMain", "AllocCode", 3, null);
 			if (alloccode < 0) {
@@ -270,18 +262,31 @@ namespace VitaInjector
 			sti.Value = 0;
 			buffer.Type = ElementType.Object;
 			
-			Console.WriteLine ("Running methods to inject payload.");
+			Console.WriteLine ("Getting method to relock code memory.");
+			long relock = v.GetMethod (false, "VitaInjectorClient.AppMain", "RelockCode", 1, null);
+			if (relock < 0) {
+				Console.WriteLine ("Error getting method.");
+				return;
+			}
+			del_code_lock.Type = ElementType.Object;
+			
+			Console.WriteLine ("Allocating code.");
 			ValueImpl codeheap = v.RunMethod (alloccode, null, new ValueImpl[]{del_code_alloc, del_code_unlock, lenptr});
+			Console.WriteLine ("Copying code.");
 			v.RunMethod (copy, null, new ValueImpl[]{buffer, sti, codeheap, lenval});
+			Console.WriteLine ("Locking code.");
 			v.RunMethod (relock, null, new ValueImpl[]{del_code_lock});
 			
-			Thread.Sleep (5000); // must do this since 1.80
+			Console.WriteLine ("Waiting for changes to take place...");
+			
+			Thread.Sleep (1000); // must do this since 1.80
 			
 			Console.WriteLine ("Creating a function delegate on buffer.");
 			codeheap.Fields [0].Value = (Int64)codeheap.Fields [0].Value + 1; // thumb2 code
 			ftype.Objid = v.GetTypeObjID (false, "VitaInjectorClient.RunCode");
 			ValueImpl del_injected = v.RunMethod (delforfptr, null, new ValueImpl[]{codeheap, ftype});
 			
+#if false
 			Console.WriteLine ("Getting delegate to output text.");
 			ValueImpl del_output = v.GetField (false, "VitaInjectorClient.AppMain", "output");
 			
@@ -293,16 +298,17 @@ namespace VitaInjector
 			}
 			del_output.Type = ElementType.Object;
 			ValueImpl fptr_output = v.RunMethod (deltofptr, null, new ValueImpl[]{del_output});
+#endif
 			
 			Console.WriteLine ("Getting helper function to execute payload.");
-			long executepayload = v.GetMethod (false, "VitaInjectorClient.AppMain", "ExecutePayload", 2, null);
+			long executepayload = v.GetMethod (false, "VitaInjectorClient.AppMain", "ExecutePayload", 1, null);
 			if (executepayload < 0) {
 				Console.WriteLine ("Error getting method.");
 				return;
 			}
 			del_injected.Type = ElementType.Object; // must be object
 			Console.WriteLine ("Running payload.");
-			v.RunMethod (executepayload, null, new ValueImpl[]{del_injected, fptr_output});
+			v.RunMethod (executepayload, null, new ValueImpl[]{del_injected});
 		}
 		
 		private static void PrintHexDump (byte[] data, uint size, uint num)
@@ -576,9 +582,9 @@ namespace VitaInjector
 			conn.ErrorHandler += HandleConnErrorHandler;
 			conn.Connect ();
 			
-			Console.WriteLine ("Waiting for app to start up.");
+			Console.WriteLine ("Waiting for app to start up...");
 			conn.VM_Resume ();
-			Thread.Sleep (15000);
+			Thread.Sleep (1000);
 			Console.WriteLine ("Getting variables.");
 			rootdomain = conn.RootDomain;
 			corlibid = conn.Domain_GetCorlib (rootdomain);
@@ -588,7 +594,7 @@ namespace VitaInjector
 					threadid = thread;
 				}
 			}
-			Console.WriteLine ("Root Domain: {0}\nCorlib: {1}\nExeAssembly: {2}\nThread: {3}", rootdomain, corlibid, assid, threadid);
+			//Console.WriteLine ("Root Domain: {0}\nCorlib: {1}\nExeAssembly: {2}\nThread: {3}", rootdomain, corlibid, assid, threadid);
 			Console.WriteLine ("Ready for hacking.");
 		}
 		
@@ -736,6 +742,18 @@ namespace VitaInjector
 			long assembly = incorlib ? corlibid : assid;
 			long tid = conn.Assembly_GetType (assembly, name, true);
 			return conn.Type_GetObject (tid);
+		}
+		
+		public int GetArrayLength (long objid)
+		{
+			int rank;
+			int[] lower_bounds;
+			int[] len = conn.Array_GetLength(objid, out rank, out lower_bounds);
+			if (rank != 1)
+			{
+				return -1;
+			}
+			return len[0];
 		}
 	}
 }
