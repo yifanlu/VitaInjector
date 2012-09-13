@@ -4,7 +4,7 @@ using System.Threading;
 using System.Net;
 using System.Net.Sockets;
 
-namespace VitaInjectorClient
+namespace LoaderClient
 {
 	public delegate uint RunCode ();
 
