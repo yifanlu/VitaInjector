@@ -289,9 +289,8 @@ namespace VitaInjector
 			Console.WriteLine ("Locking code.");
 			v.RunMethod (relock, null, new ValueImpl[]{del_code_lock});
 			
-			Console.WriteLine ("Waiting for changes to take place...");
-			
-			Thread.Sleep (1000); // must do this since 1.80
+			//Console.WriteLine ("Waiting for changes to take place...");
+			//Thread.Sleep (1000); // must do this since 1.80
 			
 			Console.WriteLine ("Creating a function delegate on buffer.");
 			codeheap.Fields [0].Value = (Int64)codeheap.Fields [0].Value + 1; // thumb2 code
