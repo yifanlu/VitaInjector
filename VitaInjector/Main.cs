@@ -32,13 +32,13 @@ namespace VitaInjector
 				"        file        homebrew ELF to launch\n" +
 				"    options (dump only):\n" +
 				"        address     address to start dumping\n" +
-				"        len         length of dump\n" +
+				"        len         length of dump (0 for max length)\n" +
 				"        out         file to dump to\n" +
 				"    options:\n" +
 				"        port        Vita's COM port\n" +
 				"ex:\n" +
 				"    VitaInjector.exe i code.bin COM5\n" +
-				"    VitaInjector.exe d 0x81000000 0x100 COM5\n"
+				"    VitaInjector.exe d 0x81000000 0x100 dump.bin COM5\n"
 			);
 		}
 		
@@ -147,6 +147,10 @@ namespace VitaInjector
 				return;
 			}
 			byte[] block = new byte[BLOCK_SIZE];
+            // error block will be written when block cannot be read
+            byte[] error_block = new byte[BLOCK_SIZE];
+            for (int i = 0; i < BLOCK_SIZE; i++)
+                error_block[i] = (byte)'X';
 			ValueImpl sti = new ValueImpl ();
 			ValueImpl dlen = new ValueImpl ();
 			sti.Type = ElementType.I4;
@@ -155,7 +159,8 @@ namespace VitaInjector
 			dlen.Value = BLOCK_SIZE;
 			src.Fields [0].Value = src_addr;
 			v.Suspend ();
-			for (int d = 0; d * BLOCK_SIZE < len; d++) {
+            Console.WriteLine("Starting dump...");
+			for (int d = 0; d * BLOCK_SIZE <= len; d++) {
 				try {
 					Console.WriteLine ("Dumping 0x{0:X}", src.Fields [0].Value);
 					ValueImpl ret = v.RunMethod (copymethod, null, new ValueImpl[]{src, dest, sti, dlen}, true);
@@ -163,18 +168,19 @@ namespace VitaInjector
 						throw new TargetException ("Method never returned.");
 					}
 					v.GetArray (dest.Objid, BLOCK_SIZE, ref block);
+#if PRINT_DUMP
 					PrintHexDump (block, (uint)BLOCK_SIZE, 16);
-					int num = BLOCK_SIZE;
+#endif
+                    int num = BLOCK_SIZE;
 					if (d * BLOCK_SIZE + num > len)
 						num = (int)(len - d * BLOCK_SIZE);
 					dump.Write (block, 0, num);
 				} catch (Exception ex) {
-					if (len > 0) {
-						Console.WriteLine ("Error dumping:\n{0}", ex.ToString ());
-						return;
-					} else {
-						Console.WriteLine ("Continuing on error.");
-					}
+					Console.WriteLine ("Error dumping 0x{0:X}: {1}", src.Fields [0].Value, ex.Message.ToString ());
+					int num = BLOCK_SIZE;
+					if (d * BLOCK_SIZE + num > len)
+						num = (int)(len - d * BLOCK_SIZE);
+                    dump.Write (error_block, 0, num);
 				}
 				// next block to dump
 				src.Fields [0].Value = (Int64)src.Fields [0].Value + BLOCK_SIZE;
@@ -378,8 +384,8 @@ namespace VitaInjector
 		private static string GetLoaderPackage (string toload)
 		{
 			Console.WriteLine ("Copying files.");
-			File.Copy ("uvloader.bin", "LoaderClient/Application/uvloader.bin");
-			File.Copy (toload, "LoaderClient/Application/homebrew.self");
+			File.Copy ("uvloader.bin", "LoaderClient/Application/uvloader.bin", true);
+			File.Copy (toload, "LoaderClient/Application/homebrew.self", true);
 			Console.WriteLine ("Generating package.");
 			string package = Path.GetTempFileName ();
 			NativeFunctions.CreatePackage (package, "LoaderClient");
@@ -680,11 +686,11 @@ namespace VitaInjector
 			}
 			return -1;
 		}
-		
-		public ValueImpl RunMethod (long methodid, ValueImpl thisval, ValueImpl[] param)
-		{
-			return RunMethod (methodid, thisval, param, false);
-		}
+
+        public ValueImpl RunMethod(long methodid, ValueImpl thisval, ValueImpl[] param)
+        {
+            return RunMethod(methodid, thisval, param, false);
+        }
 		
 		// pausing the VM is slow, if we're calling this a million times, only need to pause once
 		public ValueImpl RunMethod (long methodid, ValueImpl thisval, ValueImpl[] param, bool paused)
@@ -707,7 +713,7 @@ namespace VitaInjector
 			if (exc != null) {
 				long excmeth = GetMethod (true, "System.Exception", "ToString", 0, null);
 				exc.Type = ElementType.Object; // must do this stupid mono
-				ValueImpl excmsg = RunMethod (excmeth, exc, null);
+				ValueImpl excmsg = RunMethod (excmeth, exc, null, paused);
 				Console.WriteLine (conn.String_GetValue (excmsg.Objid));
 				throw new TargetException ("Error running method.");
 			}
