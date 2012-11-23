@@ -65,14 +65,6 @@ namespace LoaderClient
 	// to run with elevated privileges
 	public static class ExploitMain
 	{
-		public delegate uint CodeAlloc (uint length);
-	
-		public delegate void CodeUnlock ();
-		
-		public delegate void CodeLock ();
-		
-		public delegate void Payload ();
-		
         public static readonly uint PSS_CODE_ALLOC_FUNC = 0x82B27695;
         public static readonly uint PSS_CODE_UNLOCK = 0x82B27669;
         public static readonly uint PSS_CODE_LOCK = 0x82B27641;

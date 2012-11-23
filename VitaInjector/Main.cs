@@ -18,9 +18,6 @@ namespace VitaInjector
     {
         public static readonly int BLOCK_SIZE = 0x100;
         public static readonly uint MONO_IMAGES_HASHMAP_POINTER = 0x82B65674;
-        public static readonly uint PSS_CODE_ALLOC_FUNC = 0x82B27695;
-        public static readonly uint PSS_CODE_UNLOCK = 0x82B27669;
-        public static readonly uint PSS_CODE_LOCK = 0x82B27641;
 
         public static void PrintHelp()
         {
