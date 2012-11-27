@@ -1,14 +1,17 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using Mono.Debugger.Soft;
 
 
-#if PSM_99
+#if PSM_100
+using NativeFunctions = VitaInjector.NativeFunctions100;
+#elif PSM_99
 using NativeFunctions = VitaInjector.NativeFunctions99;
-#else
+#elif PSM_98
 using NativeFunctions = VitaInjector.NativeFunctions98;
 #endif
 
@@ -22,7 +25,9 @@ namespace VitaInjector
         public static void PrintHelp()
         {
             Console.WriteLine(
-                "usage: VitaInjector.exe mode (file|address len out) port\n" +
+                "usage: VitaInjector.exe keyfile mode (file|address len out) port\n" +
+                "    keyfile:\n" +
+                "        Path to key for signing package. Different key for each mode.\n" +
                 "    mode:\n" +
                 "        l[oad]      launch UVLoader\n" +
                 "        d[ump]      dump portion of the memory\n" +
@@ -42,13 +47,14 @@ namespace VitaInjector
 
         public static void Main(string[] args)
         {
-            if (args.Length < 1)
+            if (args.Length < 2)
             {
                 Console.WriteLine("error: arguments required.");
                 PrintHelp();
                 return;
             }
-            switch (args[0].ToCharArray()[0])
+            string keyfile = args[0];
+            switch (args[1].ToCharArray()[0])
             {
                 case 'l':
                     LoadMain(args);
@@ -66,7 +72,7 @@ namespace VitaInjector
 
         public static void LoadMain(string[] args)
         {
-            if (args.Length < 3)
+            if (args.Length < 4)
             {
                 Console.WriteLine("error: not enough arguments.");
                 PrintHelp();
@@ -82,8 +88,8 @@ namespace VitaInjector
                 Console.WriteLine("error: cannot find LoaderClient directory");
                 return;
             }
-            string port = args[2];
-            string toload = args[1];
+            string port = args[3];
+            string toload = args[2];
             string package = GetLoaderPackage(toload);
             Vita v = new Vita(port, package);
             v.Start();
@@ -95,18 +101,18 @@ namespace VitaInjector
 
         public static void DumpMain(string[] args)
         {
-            if (args.Length < 5)
+            if (args.Length < 6)
             {
                 Console.WriteLine("error: not enough arguments.");
                 PrintHelp();
                 return;
             }
-            string port = args[4];
+            string port = args[5];
             uint addr, len;
             FileStream dump;
-            addr = Convert.ToUInt32(args[1], args[1].StartsWith("0x") ? 16 : 10);
-            len = Convert.ToUInt32(args[2], args[2].StartsWith("0x") ? 16 : 10);
-            dump = File.OpenWrite(args[3]);
+            addr = Convert.ToUInt32(args[2], args[2].StartsWith("0x") ? 16 : 10);
+            len = Convert.ToUInt32(args[3], args[3].StartsWith("0x") ? 16 : 10);
+            dump = File.OpenWrite(args[4]);
             string package = GetDumpMemoryPackage();
             Vita v = new Vita(port, package);
             v.Start();
@@ -357,7 +363,7 @@ namespace VitaInjector
             Console.WriteLine("Extracting client package.");
             string package = Path.GetTempFileName();
             Stream resPkg;
-#if PSM_99
+#if PSM_99 || PSM_100
             resPkg = Assembly.GetExecutingAssembly().GetManifestResourceStream("VitaInjector.DumpMemory.psdp");
 #else
 			resPkg = Assembly.GetExecutingAssembly ().GetManifestResourceStream ("VitaInjector.DumpMemory0.98.psspac");
@@ -387,6 +393,13 @@ namespace VitaInjector
             File.Delete("LoaderClient/Application/homebrew.self");
             return package;
         }
+
+        private static void CopyKey(string key)
+        {
+            Console.WriteLine("Copying key to temp path.");
+            File.Copy(key, "key.ktapp");
+            return;
+        }
     }
 
     class VitaConnection : Connection
@@ -396,7 +409,7 @@ namespace VitaInjector
 
         public VitaConnection(string port)
         {
-#if PSM_99
+#if PSM_99 || PSM_100
             this.handle99 = NativeFunctionsTransport.CreateFile(1, @"\\.\" + port);
             if (this.handle99 < 0)
             {
@@ -434,7 +447,7 @@ namespace VitaInjector
 
         protected override void TransportClose()
         {
-#if PSM_99
+#if PSM_99 || PSM_100
             NativeFunctionsTransport.CloseHandle(1, handle99);
             this.handle99 = -1;
 #else
@@ -444,7 +457,7 @@ namespace VitaInjector
 
         protected override unsafe int TransportReceive(byte[] buf, int buf_offset, int len)
         {
-#if PSM_99
+#if PSM_99 || PSM_100
             while (this.handle99 != -1)
             {
                 int recieve = NativeFunctionsTransport.GetReceiveSize(1, this.handle99);
@@ -480,7 +493,7 @@ namespace VitaInjector
 
         protected override unsafe int TransportSend(byte[] buf, int buf_offset, int len)
         {
-#if PSM_99
+#if PSM_99 || PSM_100
             int towrite = len;
             uint written = 0;
             fixed (byte* p_buf = buf)
@@ -529,14 +542,19 @@ namespace VitaInjector
 
     class Vita
     {
-#if PSM_99
+        private static string KEY_PATH = "key.ktapp";
+#if PSM_99 || PSM_100
         public static string PKG_NAME = "VitaInjectorClient";
 #else
 		public static string PKG_NAME = "VitaInjectorClient0.98";
 #endif
         private string port;
         private long rootdomain = -1, threadid = -1, corlibid = -1, assid = -1;
+#if PSM_100
+        private Guid handle;
+#else
         private volatile int handle;
+#endif
         private VitaConnection conn;
         private string package;
 
@@ -580,12 +598,12 @@ namespace VitaInjector
         public void Start()
         {
             Console.WriteLine("Waiting for Vita to connect...");
-            ScePsmDevDevice? vita = null;
+            ScePsmDevice? vita = null;
             for (; ; )
             {
-                ScePsmDevDevice[] deviceArray = new ScePsmDevDevice[8];
+                ScePsmDevice[] deviceArray = new ScePsmDevice[8];
                 NativeFunctions.ListDevices(deviceArray);
-                foreach (ScePsmDevDevice dev in deviceArray)
+                foreach (ScePsmDevice dev in deviceArray)
                 {
                     if (dev.online > 0)
                     {
@@ -599,7 +617,15 @@ namespace VitaInjector
                 }
             }
             Guid devId = vita.Value.guid;
-            Console.WriteLine("Found Vita {0}, serial: {1}", devId, vita.Value.Name);
+            Console.WriteLine("Found Vita {0}, serial: {1}", devId, vita.Value.deviceID);
+#if PSM_100
+            if (NativeFunctions.Connect(devId) < 0)
+            {
+                Console.WriteLine("Error connecting to Vita.");
+                return;
+            }
+            this.handle = devId;
+#else
             this.handle = NativeFunctions.Connect(ref devId);
             if (this.handle < 0)
             {
@@ -608,9 +634,23 @@ namespace VitaInjector
                 Console.WriteLine("Error: {0}", strb.ToString());
                 return;
             }
+#endif
             PsmDeviceConsoleCallback callback = new PsmDeviceConsoleCallback(ConsoleOutput);
             Console.WriteLine("Setting console callback.");
+#if PSM_100
+            NativeFunctions.SetConsoleWrite(this.handle, Marshal.GetFunctionPointerForDelegate(callback));
+#else
             NativeFunctions.SetConsoleCallback(callback);
+#endif
+
+#if PSM_100
+            Console.WriteLine("Setting application key.");
+            if (NativeFunctions.SetAppExeKey(this.handle, KEY_PATH) < 0)
+            {
+                Console.WriteLine("Error setting the app key.");
+                return;
+            }
+#endif
 
             Console.WriteLine("Installing package {0} as {1}.", package, PKG_NAME);
             if (NativeFunctions.Install(this.handle, package, PKG_NAME) != 0)

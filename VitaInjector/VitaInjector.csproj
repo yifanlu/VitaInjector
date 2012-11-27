@@ -19,7 +19,7 @@
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Commandlineparameters>load homebrew.self COM10</Commandlineparameters>
-    <DefineConstants>DEBUG;PSM_99</DefineConstants>
+    <DefineConstants>DEBUG;PSM_100</DefineConstants>
     <ConsolePause>false</ConsolePause>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>

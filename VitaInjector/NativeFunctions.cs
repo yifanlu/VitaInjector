@@ -12,21 +12,23 @@ namespace VitaInjector
 	}
 
 	[StructLayout(LayoutKind.Sequential)]
-    public unsafe struct ScePsmDevDevice
+    public unsafe struct ScePsmDevice
 	{
-		public Guid guid;
-		public PsmDeviceType type;
-		public int online;
-		public fixed byte name[0x80];
+        public Guid guid;
+        public PsmDeviceType type;
+        public int online;
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 0x80)]
+        public char[] deviceID;
 
-		public string Name {
-			get {
-				fixed (byte* p_name = name) {
-					return Marshal.PtrToStringAnsi ((IntPtr)p_name);
-				}
-			}
-		}
-	}
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct ScePsmApplication
+    {
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 0x80)]
+        public char[] name;
+        public int size;
+    }
 
 	public enum ScePsmDevErrorCode
 	{
@@ -85,7 +87,7 @@ namespace VitaInjector
 	    public static extern ScePsmDevErrorCode Launch(int handle, string appId, bool debug, bool profile, bool keepnet, string arg);
 		
 	    [DllImport(NATIVE_DLL, EntryPoint="scePssDevListDevices", CharSet=CharSet.Ansi)]
-	    public static extern int ListDevices([In, Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex=0, SizeConst=8)] ScePsmDevDevice[] deviceArray);
+        public static extern int ListDevices([In, Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0, SizeConst = 8)] ScePsmDevice[] deviceArray);
 		
 	    [DllImport(NATIVE_DLL, EntryPoint="scePssDevSetConsoleWrite")]
 	    public static extern ScePsmDevErrorCode SetConsoleCallback(PsmDeviceConsoleCallback proc);
@@ -118,7 +120,7 @@ namespace VitaInjector
 		public static extern ScePsmDevErrorCode Launch (int handle, string appId, bool debug, bool profile, bool keepnet, string arg);
 
 		[DllImport("psm_device64.dll", EntryPoint="scePsmDevListDevices", CharSet=CharSet.Ansi)]
-		public static extern int ListDevices ([In, Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex=0, SizeConst=8)] ScePsmDevDevice[] deviceArray);
+        public static extern int ListDevices([In, Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0, SizeConst = 8)] ScePsmDevice[] deviceArray);
 
 		[DllImport("psm_device64.dll", EntryPoint="scePsmDevSetConsoleWrite")]
 		public static extern ScePsmDevErrorCode SetConsoleCallback (PsmDeviceConsoleCallback proc);
@@ -126,4 +128,44 @@ namespace VitaInjector
 		[DllImport("psm_device64.dll", EntryPoint="scePsmDevUninstall", CharSet=CharSet.Ansi)]
 		public static extern ScePsmDevErrorCode Uninstall (int handle, string appId);
 	}
+
+    public class NativeFunctions100
+    {
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevConnect")]
+        public static extern int Connect([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevCreatePackage")]
+        public static extern int CreatePackage([MarshalAs(UnmanagedType.LPStr)] string packageFile, [MarshalAs(UnmanagedType.LPStr)] string dirForPack);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevDisconnect")]
+        public static extern int Disconnect([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevExistAppExeKey")]
+        public static extern int ExistAppExeKey([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid, long accountId, [MarshalAs(UnmanagedType.LPStr)] string titleIdentifier, [MarshalAs(UnmanagedType.LPStr)] string env);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevExtractPackage")]
+        public static extern int ExtractPackage([MarshalAs(UnmanagedType.LPStr)] string dirExtract, [MarshalAs(UnmanagedType.LPStr)] string packageFile);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevGetDeviceSeed")]
+        public static extern int GetDeviceSeed([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid, [MarshalAs(UnmanagedType.LPStr)] string filename);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevGetErrStr")]
+        public static extern int GetErrStr([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid, [In, Out, MarshalAs(UnmanagedType.LPStr)] StringBuilder errstr);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevGetLog")]
+        public static extern int GetLog([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid, [In, Out, MarshalAs(UnmanagedType.LPStr)] StringBuilder logstr);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevInstall")]
+        public static extern int Install([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid, [MarshalAs(UnmanagedType.LPStr)] string packageFile, [MarshalAs(UnmanagedType.LPStr)] string appId);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevKill")]
+        public static extern int Kill([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevLaunch")]
+        public static extern int Launch([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid, [MarshalAs(UnmanagedType.LPStr)] string appId, bool debug, bool profile, bool keepnet, [MarshalAs(UnmanagedType.LPStr)] string arg);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevListApplications")]
+        public static extern int ListApplications([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid, [In, Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0, SizeConst = 100)] ScePsmApplication[] appArray);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevListDevices")]
+        public static extern int ListDevices([In, Out, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0, SizeConst = 8)] ScePsmDevice[] deviceArray);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevPickFileFromPackage")]
+        public static extern int PickFileFromPackage([MarshalAs(UnmanagedType.LPStr)] string outName, [MarshalAs(UnmanagedType.LPStr)] string packageFile, [MarshalAs(UnmanagedType.LPStr)] string inName);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevSetAdbExePath", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+        public static extern int SetAdbExePath(string path);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevSetAppExeKey")]
+        public static extern int SetAppExeKey([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid, [MarshalAs(UnmanagedType.LPStr)] string filename);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevSetConsoleWrite")]
+        public static extern int SetConsoleWrite([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid, IntPtr proc);
+        [DllImport(@"psm_device64.dll", EntryPoint = "scePsmDevUninstall")]
+        public static extern int Uninstall([In, MarshalAs(UnmanagedType.LPStruct)] Guid deviceGuid, [MarshalAs(UnmanagedType.LPStr)] string appId);
+    }
 }
