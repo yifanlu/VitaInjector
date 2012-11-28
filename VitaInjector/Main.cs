@@ -40,8 +40,8 @@ namespace VitaInjector
                 "    options:\n" +
                 "        port        Vita's COM port\n" +
                 "ex:\n" +
-                "    VitaInjector.exe i code.bin COM5\n" +
-                "    VitaInjector.exe d 0x81000000 0x100 dump.bin COM5\n"
+                "    VitaInjector.exe LoaderClient.ktapp i code.bin COM5\n" +
+                "    VitaInjector.exe DumpMemory.ktapp d 0x81000000 0x100 dump.bin COM5\n"
             );
         }
 
@@ -617,12 +617,12 @@ namespace VitaInjector
                 }
             }
             Guid devId = vita.Value.guid;
-            Console.WriteLine("Found Vita {0}, serial: {1}", devId, vita.Value.deviceID);
+            Console.WriteLine("Found Vita {0}, serial: {1}", devId, new string(vita.Value.deviceID));
 #if PSM_100
             if (NativeFunctions.Connect(devId) < 0)
             {
                 Console.WriteLine("Error connecting to Vita.");
-                return;
+                throw new IOException("Cannot connect to Vita.");
             }
             this.handle = devId;
 #else
@@ -648,7 +648,7 @@ namespace VitaInjector
             if (NativeFunctions.SetAppExeKey(this.handle, KEY_PATH) < 0)
             {
                 Console.WriteLine("Error setting the app key.");
-                return;
+                throw new IOException("Cannot connect to Vita.");
             }
 #endif
 
@@ -656,14 +656,14 @@ namespace VitaInjector
             if (NativeFunctions.Install(this.handle, package, PKG_NAME) != 0)
             {
                 Console.WriteLine("Error installing package.");
-                return;
+                throw new IOException("Cannot connect to Vita.");
             }
 
             Console.WriteLine("Launching {0}.", PKG_NAME);
             if (NativeFunctions.Launch(this.handle, PKG_NAME, true, false, false, "") != 0)
             {
                 Console.WriteLine("Error running application.");
-                return;
+                throw new IOException("Cannot connect to Vita.");
             }
 
             Console.WriteLine("Connecting debugger.");
