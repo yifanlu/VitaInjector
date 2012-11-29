@@ -39,6 +39,8 @@
     <Reference Include="Mono.Cecil">
       <HintPath>lib\Mono.Cecil.dll</HintPath>
     </Reference>
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Main.cs" />

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -25,9 +26,7 @@ namespace VitaInjector
         public static void PrintHelp()
         {
             Console.WriteLine(
-                "usage: VitaInjector.exe keyfile mode (file|address len out) port\n" +
-                "    keyfile:\n" +
-                "        Path to key for signing package. Different key for each mode.\n" +
+                "usage: VitaInjector.exe mode (file|address len out) port\n" +
                 "    mode:\n" +
                 "        l[oad]      launch UVLoader\n" +
                 "        d[ump]      dump portion of the memory\n" +
@@ -40,21 +39,27 @@ namespace VitaInjector
                 "    options:\n" +
                 "        port        Vita's COM port\n" +
                 "ex:\n" +
-                "    VitaInjector.exe LoaderClient.ktapp i code.bin COM5\n" +
-                "    VitaInjector.exe DumpMemory.ktapp d 0x81000000 0x100 dump.bin COM5\n"
+                "    VitaInjector.exe i code.bin COM5\n" +
+                "    VitaInjector.exe d 0x81000000 0x100 dump.bin COM5\n"
             );
         }
 
         public static void Main(string[] args)
         {
-            if (args.Length < 2)
+            if (args.Length < 1)
             {
                 Console.WriteLine("error: arguments required.");
                 PrintHelp();
                 return;
             }
-            string keyfile = args[0];
-            switch (args[1].ToCharArray()[0])
+            // as of 1.00 we must kill PsmDevice.exe
+            Process[] potential = Process.GetProcessesByName("PsmDevice");
+            foreach(Process process in potential)
+            {
+                Console.WriteLine("Killing PsmDevice process {0}", process.Id);
+                process.Kill();
+            }
+            switch (args[0].ToCharArray()[0])
             {
                 case 'l':
                     LoadMain(args);
@@ -72,7 +77,7 @@ namespace VitaInjector
 
         public static void LoadMain(string[] args)
         {
-            if (args.Length < 4)
+            if (args.Length < 3)
             {
                 Console.WriteLine("error: not enough arguments.");
                 PrintHelp();
@@ -88,8 +93,8 @@ namespace VitaInjector
                 Console.WriteLine("error: cannot find LoaderClient directory");
                 return;
             }
-            string port = args[3];
-            string toload = args[2];
+            string port = args[2];
+            string toload = args[1];
             string package = GetLoaderPackage(toload);
             Vita v = new Vita(port, package);
             v.Start();
@@ -101,18 +106,18 @@ namespace VitaInjector
 
         public static void DumpMain(string[] args)
         {
-            if (args.Length < 6)
+            if (args.Length < 5)
             {
                 Console.WriteLine("error: not enough arguments.");
                 PrintHelp();
                 return;
             }
-            string port = args[5];
+            string port = args[4];
             uint addr, len;
             FileStream dump;
-            addr = Convert.ToUInt32(args[2], args[2].StartsWith("0x") ? 16 : 10);
-            len = Convert.ToUInt32(args[3], args[3].StartsWith("0x") ? 16 : 10);
-            dump = File.OpenWrite(args[4]);
+            addr = Convert.ToUInt32(args[1], args[1].StartsWith("0x") ? 16 : 10);
+            len = Convert.ToUInt32(args[2], args[2].StartsWith("0x") ? 16 : 10);
+            dump = File.OpenWrite(args[3]);
             string package = GetDumpMemoryPackage();
             Vita v = new Vita(port, package);
             v.Start();
@@ -264,6 +269,7 @@ namespace VitaInjector
                     v.Suspend();
                 }
             }
+            dump.Close();
             v.Resume();
         }
 
@@ -393,14 +399,9 @@ namespace VitaInjector
             File.Delete("LoaderClient/Application/homebrew.self");
             return package;
         }
-
-        private static void CopyKey(string key)
-        {
-            Console.WriteLine("Copying key to temp path.");
-            File.Copy(key, "key.ktapp");
-            return;
-        }
     }
+
+
 
     class VitaConnection : Connection
     {
@@ -542,7 +543,6 @@ namespace VitaInjector
 
     class Vita
     {
-        private static string KEY_PATH = "key.ktapp";
 #if PSM_99 || PSM_100
         public static string PKG_NAME = "VitaInjectorClient";
 #else
@@ -641,15 +641,6 @@ namespace VitaInjector
             NativeFunctions.SetConsoleWrite(this.handle, Marshal.GetFunctionPointerForDelegate(callback));
 #else
             NativeFunctions.SetConsoleCallback(callback);
-#endif
-
-#if PSM_100
-            Console.WriteLine("Setting application key.");
-            if (NativeFunctions.SetAppExeKey(this.handle, KEY_PATH) < 0)
-            {
-                Console.WriteLine("Error setting the app key.");
-                throw new IOException("Cannot connect to Vita.");
-            }
 #endif
 
             Console.WriteLine("Installing package {0} as {1}.", package, PKG_NAME);
