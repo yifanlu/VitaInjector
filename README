@@ -1,4 +1,4 @@
-Install PSM 0.99
+Install PSM 1.00
 You need the following files from "C:\Program Files (x86)\SCE\PSM\tools\lib"
 host_transport64.dll
 psm_device64.dll
@@ -16,3 +16,10 @@ Next build the loader client (Debug) by building .\LoaderClient\LoaderClient.sln
 Rename .\LoaderClient\bin\Debug\LoaderClient-unsigned to LoaderClient
 Copy LoaderClient to .\VitaInjector\bin\Debug
 Copy contents of .\VitaInjector\lib\ to .\VitaInjector\bin\Debug
+
+Signing the package
+
+On PSM 1.00 you need to sign stuff. First, become a paying publisher.
+Then create a keyring for "*" and run any sample app to "load" the key unto the Vita.
+If the sample app runs, you can use VitaInjector. If not, find out why.
+Then VitaInjector should work as usual.
