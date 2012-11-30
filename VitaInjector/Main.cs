@@ -39,7 +39,7 @@ namespace VitaInjector
                 "    options:\n" +
                 "        port        Vita's COM port\n" +
                 "ex:\n" +
-                "    VitaInjector.exe i code.bin COM5\n" +
+                "    VitaInjector.exe l homebrew.elf COM5\n" +
                 "    VitaInjector.exe d 0x81000000 0x100 dump.bin COM5\n"
             );
         }

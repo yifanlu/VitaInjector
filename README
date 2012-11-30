@@ -23,3 +23,14 @@ On PSM 1.00 you need to sign stuff. First, become a paying publisher.
 Then create a keyring for "*" and run any sample app to "load" the key unto the Vita.
 If the sample app runs, you can use VitaInjector. If not, find out why.
 Then VitaInjector should work as usual.
+
+Running VitaInjector:
+
+Open the PSM dev app on the Vita and plug in the USB.
+Open device manager and see what serial port the Vita's using (COMX will be used here)
+To dump memory, run with:
+    VitaInjector.exe d 0x81000000 0x100 dump.bin COMX
+                       ^ address  ^ len ^ output ^ port
+To run an unencrypted SELF or (recommended) ELF:
+    VitaInjector.exe l homebrew.elf COMX
+                       ^ app        ^ port
