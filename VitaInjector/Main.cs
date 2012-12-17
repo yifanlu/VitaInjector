@@ -198,27 +198,15 @@ namespace VitaInjector
                 // dump all of ram
                 len = 0xFFFFFFFF - addr;
             }
-            // weird address format for IntPtr on vita
-            Int64 src_addr = UIntToVitaInt(addr);
-            ValueImpl dest = v.GetField(false, "DumpMemory.AppMain", "dest");
-            dest.Type = ElementType.Object; // must be done
-            ValueImpl src = v.GetField(false, "DumpMemory.AppMain", "src");
-            if (dest == null)
-            {
-                Console.WriteLine("Cannot find buffer to write to.");
-                return;
-            }
-            if (src == null)
-            {
-                Console.WriteLine("Cannot find pointer to read from.");
-                return;
-            }
-            long copymethod = v.GetMethod(true, "System.Runtime.InteropServices.Marshal", "Copy", 4, new string[] { "IntPtr", "Byte[]", "Int32", "Int32" });
-            if (copymethod < 0)
+            long methid_copy = v.GetMethod(true, "System.Runtime.InteropServices.Marshal", "Copy", 4, new string[] { "IntPtr", "Byte[]", "Int32", "Int32" });
+            if (methid_copy < 0)
             {
                 Console.WriteLine("Cannot find Copy method.");
                 return;
             }
+            // weird address format for IntPtr on vita
+            ValueImpl src = v.CreateIntPtr(UIntToVitaInt(addr));
+            ValueImpl dest = v.CreateArray("System.Byte", BLOCK_SIZE);
             byte[] block = new byte[BLOCK_SIZE];
             // error block will be written when block cannot be read
             byte[] error_block = new byte[BLOCK_SIZE];
@@ -230,7 +218,6 @@ namespace VitaInjector
             dlen.Type = ElementType.I4;
             sti.Value = 0;
             dlen.Value = BLOCK_SIZE;
-            src.Fields[0].Value = src_addr;
             v.Suspend();
             Console.WriteLine("Starting dump...");
             for (int d = 0; d * BLOCK_SIZE <= len; d++)
@@ -238,7 +225,7 @@ namespace VitaInjector
                 try
                 {
                     Console.WriteLine("Dumping 0x{0:X}", src.Fields[0].Value);
-                    ValueImpl ret = v.RunMethod(copymethod, null, new ValueImpl[] { src, dest, sti, dlen }, true);
+                    ValueImpl ret = v.RunMethod(methid_copy, null, new ValueImpl[] { src, dest, sti, dlen }, true);
                     if (ret == null)
                     {
                         throw new TargetException("Method never returned.");
@@ -251,6 +238,12 @@ namespace VitaInjector
                     if (d * BLOCK_SIZE + num > len)
                         num = (int)(len - d * BLOCK_SIZE);
                     dump.Write(block, 0, num);
+                }
+                catch (InvalidOperationException ex) // vm not suspended, retry
+                {
+                    Console.WriteLine("VM_NOT_SUSPENDED, retrying...");
+                    d--;
+                    continue;
                 }
                 catch (Exception ex)
                 {
@@ -291,17 +284,11 @@ namespace VitaInjector
             {
                 throw new TargetException("Cannot get method id for WriteInt32");
             }
-            long methid_alloch = v.GetMethod(true, "System.Runtime.InteropServices.Marshal", "AllocHGlobal", 1, new string[] { "Int32" });
-            if (methid_alloch < 0)
-            {
-                throw new TargetException("Cannot get method id for AllocHGlobal");
-            }
             // step 1, find out where the hashmap is stored
             ValueImpl zero = new ValueImpl();
             zero.Type = ElementType.I4;
             zero.Value = 0;
-            ValueImpl ptr_to_hashmap = v.RunMethod(methid_alloch, null, new ValueImpl[] { zero }); // we need the IntPtr type
-            ptr_to_hashmap.Fields[0].Value = UIntToVitaInt(MONO_IMAGES_HASHMAP_POINTER);
+            ValueImpl ptr_to_hashmap = v.CreateIntPtr(UIntToVitaInt(MONO_IMAGES_HASHMAP_POINTER));
             ValueImpl offset = new ValueImpl();
             offset.Type = ElementType.I4;
             offset.Value = 0;
@@ -665,7 +652,7 @@ namespace VitaInjector
 
             Console.WriteLine("Waiting for app to start up...");
             conn.VM_Resume();
-            Thread.Sleep(1000);
+            Thread.Sleep(5000);
             Console.WriteLine("Getting variables.");
             rootdomain = conn.RootDomain;
             corlibid = conn.Domain_GetCorlib(rootdomain);
@@ -861,9 +848,44 @@ namespace VitaInjector
             return len[0];
         }
 
-        public long CreateString(string str)
+        public ValueImpl CreateString(string str)
         {
-            return conn.Domain_CreateString(conn.RootDomain, str);
+            ValueImpl data = new ValueImpl();
+            data.Type = ElementType.Object;
+            data.Objid = conn.Domain_CreateString(conn.RootDomain, str);
+            return data;
+        }
+		
+		public ValueImpl CreateIntPtr(Int64 val)
+		{
+            ValueImpl data = new ValueImpl();
+            data.Type = ElementType.I;
+            data.Value = val;
+            long methid_ctor = GetMethod(true, "System.IntPtr", ".ctor", 1, new string[] { "Int64" });
+            if (methid_ctor < 0)
+            {
+                throw new TargetException("Cannot get id to create new IntPtr");
+            }
+            return RunMethod(methid_ctor, null, new ValueImpl[] { data });
+		}
+        
+        public ValueImpl CreateArray(string typename, int length)
+        {
+            long type_tocreate = GetTypeObjID(true, typename);
+            long methid_createarray = GetMethod(true, "System.Array", "CreateInstance", 2, new string[] { "Type", "Int32" });
+            if (methid_createarray < 0)
+            {
+                throw new TargetException("Cannot get id to create new array.");
+            }
+            ValueImpl arg_elementtype = new ValueImpl();
+            ValueImpl arg_length = new ValueImpl();
+            arg_elementtype.Type = ElementType.Object;
+            arg_elementtype.Objid = type_tocreate;
+            arg_length.Type = ElementType.I4;
+            arg_length.Value = length;
+            ValueImpl val_array = RunMethod(methid_createarray, null, new ValueImpl[] { arg_elementtype, arg_length });
+            val_array.Type = ElementType.Object; // fix bug
+            return val_array;
         }
 
         public long GetCorlibModule()
