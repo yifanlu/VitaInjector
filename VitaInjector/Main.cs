@@ -21,7 +21,7 @@ namespace VitaInjector
     class MainClass
     {
         public static readonly int BLOCK_SIZE = 0x100;
-        public static readonly uint MONO_IMAGES_HASHMAP_POINTER = 0x82B65674;
+        public static readonly uint MONO_IMAGES_HASHMAP_POINTER = 0x81485678;
 
         public static void PrintHelp()
         {
@@ -205,8 +205,24 @@ namespace VitaInjector
                 return;
             }
             // weird address format for IntPtr on vita
+            /* DEPRECATED BECAUSE GC WILL DELETE THESE
             ValueImpl src = v.CreateIntPtr(UIntToVitaInt(addr));
             ValueImpl dest = v.CreateArray("System.Byte", BLOCK_SIZE);
+             */
+            ValueImpl dest = v.GetField(false, "DumpMemory.AppMain", "dest");
+            dest.Type = ElementType.Object; // must be done
+            ValueImpl src = v.GetField(false, "DumpMemory.AppMain", "src");
+            if (dest == null)
+            {
+                Console.WriteLine("Cannot find buffer to write to.");
+                return;
+            }
+            if (src == null)
+            {
+                Console.WriteLine("Cannot find pointer to read from.");
+                return;
+            }
+            src.Fields[0].Value = UIntToVitaInt(addr);
             byte[] block = new byte[BLOCK_SIZE];
             // error block will be written when block cannot be read
             byte[] error_block = new byte[BLOCK_SIZE];
@@ -224,6 +240,7 @@ namespace VitaInjector
             {
                 try
                 {
+					dump.Flush();
                     Console.WriteLine("Dumping 0x{0:X}", src.Fields[0].Value);
                     ValueImpl ret = v.RunMethod(methid_copy, null, new ValueImpl[] { src, dest, sti, dlen }, true);
                     if (ret == null)
@@ -245,7 +262,7 @@ namespace VitaInjector
                     d--;
                     continue;
                 }
-                catch (Exception ex)
+                catch (Vita.RunMethodException ex)
                 {
                     Console.WriteLine("Error dumping 0x{0:X}: {1}", src.Fields[0].Value, ex.Message.ToString());
                     int num = BLOCK_SIZE;
@@ -530,6 +547,13 @@ namespace VitaInjector
 
     class Vita
     {
+        public class RunMethodException : Exception
+        {
+            public RunMethodException(string msg) : base(msg)
+            {
+
+            }
+        }
 #if PSM_99 || PSM_100
         public static string PKG_NAME = "VitaInjectorClient";
 #else
@@ -758,7 +782,7 @@ namespace VitaInjector
                 exc.Type = ElementType.Object; // must do this stupid mono
                 ValueImpl excmsg = RunMethod(excmeth, exc, null, paused);
                 Console.WriteLine(conn.String_GetValue(excmsg.Objid));
-                throw new TargetException("Error running method.");
+                throw new RunMethodException("Error running method.");
             }
             return null;
         }
@@ -800,7 +824,7 @@ namespace VitaInjector
             {
                 buf = new byte[len];
             }
-            ValueImpl[] vals = conn.Array_GetValues(objid, 0, MainClass.BLOCK_SIZE);
+            ValueImpl[] vals = conn.Array_GetValues(objid, 0, len);
             for (int i = 0; i < vals.Length; i++)
             {
                 buf[i] = (byte)vals[i].Value;
@@ -857,16 +881,18 @@ namespace VitaInjector
         }
 		
 		public ValueImpl CreateIntPtr(Int64 val)
-		{
-            ValueImpl data = new ValueImpl();
-            data.Type = ElementType.I;
-            data.Value = val;
-            long methid_ctor = GetMethod(true, "System.IntPtr", ".ctor", 1, new string[] { "Int64" });
-            if (methid_ctor < 0)
+        {
+            long methid_alloc = GetMethod(true, "System.Runtime.InteropServices.Marshal", "AllocHGlobal", 1, new string[] { "Int32" });
+            if (methid_alloc < 0)
             {
                 throw new TargetException("Cannot get id to create new IntPtr");
             }
-            return RunMethod(methid_ctor, null, new ValueImpl[] { data });
+            ValueImpl zero = new ValueImpl();
+            zero.Type = ElementType.I4;
+            zero.Value = 0;
+            ValueImpl data = RunMethod(methid_alloc, null, new ValueImpl[] { zero }); // this is to get the IntPtr type
+            data.Fields[0].Value = val;
+            return data;
 		}
         
         public ValueImpl CreateArray(string typename, int length)

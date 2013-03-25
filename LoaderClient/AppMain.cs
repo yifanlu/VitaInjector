@@ -65,9 +65,9 @@ namespace LoaderClient
 	// to run with elevated privileges
 	public static class ExploitMain
 	{
-        public static readonly uint PSS_CODE_ALLOC_FUNC = 0x82B27655;
-        public static readonly uint PSS_CODE_UNLOCK = 0x82B27629;
-        public static readonly uint PSS_CODE_LOCK = 0x82B27601;
+        public static readonly uint PSS_CODE_ALLOC_FUNC = 0x8144759D;
+        public static readonly uint PSS_CODE_UNLOCK = 0x81447571;
+        public static readonly uint PSS_CODE_LOCK = 0x81447549;
 		public static readonly string PAYLOAD_PATH = "/Application/uvloader.bin";
 		public static readonly string HOMEBREW_PATH = "/Application/homebrew.self";
 		public static readonly string DECRYPTED_PATH = "/Temp/homebrew.self";
