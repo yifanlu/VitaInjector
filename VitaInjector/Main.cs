@@ -21,7 +21,11 @@ namespace VitaInjector
     class MainClass
     {
         public static readonly int BLOCK_SIZE = 0x100;
+#if FW_2_12
         public static readonly uint MONO_IMAGES_HASHMAP_POINTER = 0x81485678;
+#elif FW_2_50
+        public static readonly uint MONO_IMAGES_HASHMAP_POINTER = 0x81465678;
+#endif
 
         public static void PrintHelp()
         {

@@ -65,9 +65,15 @@ namespace LoaderClient
 	// to run with elevated privileges
 	public static class ExploitMain
 	{
-        public static readonly uint PSS_CODE_ALLOC_FUNC = 0x8144759D;
-        public static readonly uint PSS_CODE_UNLOCK = 0x81447571;
-        public static readonly uint PSS_CODE_LOCK = 0x81447549;
+#if FW2_12
+        public static readonly uint PSS_CODE_ALLOC_FUNC = 0x814475A1;
+        public static readonly uint PSS_CODE_UNLOCK = 0x81447575;
+        public static readonly uint PSS_CODE_LOCK = 0x8144754D;
+#elif FW2_50
+        public static readonly uint PSS_CODE_ALLOC_FUNC = 0x814275A1;
+        public static readonly uint PSS_CODE_UNLOCK = 0x81427575;
+        public static readonly uint PSS_CODE_LOCK = 0x8142754D;
+#endif
 		public static readonly string PAYLOAD_PATH = "/Application/uvloader.bin";
 		public static readonly string HOMEBREW_PATH = "/Application/homebrew.self";
 		public static readonly string DECRYPTED_PATH = "/Temp/homebrew.self";
@@ -104,7 +110,7 @@ namespace LoaderClient
 			Console.WriteLine ("Running payload.");
 			IntPtr exec_code = new IntPtr(code_block.ToInt64() | 1); // thumb code
 			int ret = NativeFunctions.RunExploit(exec_code);
-			Console.WriteLine ("Payload exited with return value: {0}", ret);
+			Console.WriteLine ("Payload exited with return value: 0x{0:X}", ret);
 		}
 	}
 }
